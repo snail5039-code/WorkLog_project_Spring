@@ -1,7 +1,10 @@
 package com.example.demo.dao;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 
 import com.example.demo.dto.WorkLog;
 
@@ -19,5 +22,22 @@ public interface WorkLogDao {
 					, boardId = 1                   
 			""")
 	public void writeWorkLog(WorkLog workLogData);
+
+	@Select("""
+			select w.*, m.loginId as writerName
+				from workLog as w
+				inner join member as m
+				on w.memberId = m.id 
+			""")
+	public List<WorkLog> showList();
+
+	@Select("""
+			select w.*, m.loginId as writerName
+				from workLog as w
+				inner join member as m
+				on w.memberId = m.id 
+				where w.id = #{id}
+			""")
+	public WorkLog showDetail(int id);
 
 }

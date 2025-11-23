@@ -1,5 +1,7 @@
 package com.example.demo.service;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 import com.example.demo.dao.WorkLogDao;
@@ -16,6 +18,14 @@ public class WorkLogService {
 	
 	public void writeWorkLog(WorkLog workLogData) {
 		this.workLogDao.writeWorkLog(workLogData);
+	}
+
+	public List<WorkLog> showList() {
+		return this.workLogDao.showList();
+	}
+
+	public WorkLog showDetail(int id) {
+		return this.workLogDao.showDetail(id);
 	}
 	
 }
