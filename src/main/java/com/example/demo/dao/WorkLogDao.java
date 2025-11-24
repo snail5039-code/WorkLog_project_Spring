@@ -4,7 +4,9 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import com.example.demo.dto.WorkLog;
 
@@ -39,5 +41,15 @@ public interface WorkLogDao {
 				where w.id = #{id}
 			""")
 	public WorkLog showDetail(int id);
+	
+	@Update("""
+			update workLog
+				set updateDate = now()
+					, title = #{modifyData.title}
+					, mainContent = #{modifyData.mainContent}
+					, sideContent = #{modifyData.sideContent}
+				where id = #{id}
+			""")
+	public int doModify(@Param("id") int id, @Param("modifyData") WorkLog modifyData);
 
 }

@@ -48,4 +48,9 @@ public class WorkLogController {
 	public WorkLog showDetail(@PathVariable("id") int id) {
 		return this.workLogService.showDetail(id);
 	}
+	
+	@PostMapping("/usr/work/modify/{id}")
+	public int modify(@PathVariable("id") int id, @RequestBody WorkLog modifyData) {
+		return this.workLogService.doModify(id, modifyData);
+	}
 }

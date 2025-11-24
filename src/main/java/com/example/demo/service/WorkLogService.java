@@ -27,5 +27,9 @@ public class WorkLogService {
 	public WorkLog showDetail(int id) {
 		return this.workLogDao.showDetail(id);
 	}
+
+	public int doModify(int id, WorkLog modifyData) {
+		return this.workLogDao.doModify(id, modifyData);
+	}
 	
 }

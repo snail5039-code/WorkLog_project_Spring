@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Member {
 	
+	private int id;
 	private String regDate; 
 	private String updateDate; 
 	private String loginId; 

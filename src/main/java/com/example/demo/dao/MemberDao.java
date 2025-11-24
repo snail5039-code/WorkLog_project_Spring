@@ -2,6 +2,7 @@ package com.example.demo.dao;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 
 import com.example.demo.dto.Member;
 
@@ -20,5 +21,12 @@ public interface MemberDao {
 					, address = #{address}
 			""")
 	void memberJoin(Member memberJoin);
+	
+	@Select("""
+			select *
+				from member
+				where loginId = #{loginId}
+			""")
+	Member getMemberLoginId(Member loginData);
 	
 }

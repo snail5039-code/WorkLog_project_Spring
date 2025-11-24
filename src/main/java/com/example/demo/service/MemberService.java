@@ -16,5 +16,8 @@ public class MemberService {
 	public void memberJoin(Member memberJoin) {
 		this.memberDao.memberJoin(memberJoin);
 	}
+	public Member getMemberLoginId(Member loginData) {
+		return this.memberDao.getMemberLoginId(loginData);
+	}
 	
 }
