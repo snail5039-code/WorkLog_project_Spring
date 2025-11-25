@@ -26,15 +26,9 @@ public class WorkLogController {
 	
 	@PostMapping("/usr/work/workLog")
 	public String writeWorkLog(@RequestBody WorkLog workLogData ) {
-		System.out.println("--- 리액트 요청 데이터 ---");
-	    System.out.println("Title: " + workLogData.getTitle());
-	    System.out.println("MainContent: " + workLogData.getMainContent());
-	    System.out.println("sideContent: " + workLogData.getSideContent());
-	    System.out.println("--------------------------");
 	    
 		this.workLogService.writeWorkLog(workLogData);
 		
-		//System.out.println("데이터 잘 들어옴 "); 테스트
 		
 		return "데이터 입력 완료";
 	}
