@@ -10,7 +10,14 @@ spring:
     url: jdbc:mysql://localhost:3306/workLog_project
     username: root
     password: 
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: llama3
 server:
   port: 8081
+  tomcat:
+    max-http-header-size: 65536
 #  servlet:
 #    context-path: /test
