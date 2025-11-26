@@ -30,9 +30,23 @@ CREATE TABLE board (
     , boardName VARCHAR(30) NOT NULL  
 );
 
+CREATE TABLE fileAttach(
+	id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT '첨부파일 고유 번호'
+	, regDate DATETIME NOT NULL
+	, updateDate DATETIME NOT NULL
+	, workLogId INT UNSIGNED NOT NULL
+	, fileName VARCHAR(50) NOT NULL
+	, filePath VARCHAR(150) NOT NULL
+	, fileSize BIGINT NOT NULL
+);
+
+ALTER TABLE fileAttach MODIFY COLUMN fileSize BIGINT UNSIGNED NOT NULL;
 
 SELECT *
     FROM workLog;
     
 SELECT *
     FROM `member`;
+    
+SELECT *
+	FROM fileAttach;

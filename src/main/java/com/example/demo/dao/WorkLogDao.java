@@ -17,13 +17,13 @@ public interface WorkLogDao {
 			insert into workLog
 				set regDate = now()
 					, updateDate = now()
-					, title = #{title}
-					, mainContent = #{mainContent}
-					, sideContent = #{sideContent}
-					, memberId = 1                
+					, title = #{workLogData.title}
+					, mainContent = #{workLogData.mainContent}}
+					, sideContent = #{workLogData.sideContent}
+					, memberId = #{memberId}               
 					, boardId = 1                   
 			""")
-	public void writeWorkLog(WorkLog workLogData);
+	public WorkLog writeWorkLog(@Param("workLogData") WorkLog workLogData, @Param("memberId") int memberId);
 
 	@Select("""
 			select w.*, m.loginId as writerName

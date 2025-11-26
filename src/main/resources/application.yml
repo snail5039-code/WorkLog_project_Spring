@@ -15,6 +15,9 @@ spring:
       base-url: http://localhost:11434
       chat:
         model: llama3
+file:
+  upload-dir: ${user.dir}/uploads
+#이거는 파일 업로드 할때 경로 알아서 찾으라고 만든거임!
 server:
   port: 8081
   tomcat:

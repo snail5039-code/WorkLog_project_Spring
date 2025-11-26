@@ -16,8 +16,8 @@ public class WorkLogService {
 		this.workLogDao = workLogDao;
 	}
 	
-	public void writeWorkLog(WorkLog workLogData) {
-		this.workLogDao.writeWorkLog(workLogData);
+	public WorkLog writeWorkLog(WorkLog workLogData, int memberId) {
+		return this.workLogDao.writeWorkLog(workLogData, memberId);
 	}
 
 	public List<WorkLog> showList() {
