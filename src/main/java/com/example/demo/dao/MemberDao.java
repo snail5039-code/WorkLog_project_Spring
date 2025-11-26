@@ -29,4 +29,11 @@ public interface MemberDao {
 			""")
 	Member getMemberLoginId(Member loginData);
 	
+	@Select("""
+			select count(loginId)
+				from member 
+				where loginId = #{loginId}
+			""")
+	int checkLoginId(String loginId);
+	
 }

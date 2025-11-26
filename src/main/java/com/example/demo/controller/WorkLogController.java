@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.dto.WorkLog;
 import com.example.demo.service.WorkLogService;
@@ -24,9 +25,16 @@ public class WorkLogController {
 		this.workLogService = workLogService;
 	}
 	
-	@PostMapping("/usr/work/workLog")
-	public String writeWorkLog(@RequestBody WorkLog workLogData ) {
-	    
+	@PostMapping("/usr/work/workLog")  //MultipartFile 이거는 스프링부트 내장이라서 바로 사용 가능함, 리액트에서 multiple를 받아온거!
+	public String writeWorkLog(String title, String mainContent, String sideContent, List<MultipartFile> files) {
+	    // MultipartFile 이거는 따로 테이블 만들어서 보관해야됌!
+		// 나중에 바꾸기 ㅋㅋ 
+		WorkLog workLogData = new WorkLog();
+		
+		workLogData.setTitle(title);
+		workLogData.setMainContent(mainContent);
+		workLogData.setSideContent(sideContent);
+		
 		this.workLogService.writeWorkLog(workLogData);
 		
 		

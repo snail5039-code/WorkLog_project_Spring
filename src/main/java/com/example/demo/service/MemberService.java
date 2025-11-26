@@ -19,5 +19,8 @@ public class MemberService {
 	public Member getMemberLoginId(Member loginData) {
 		return this.memberDao.getMemberLoginId(loginData);
 	}
+	public int checkLoginId(String loginId) {
+		return this.memberDao.checkLoginId(loginId);
+	}
 	
 }
