@@ -15,7 +15,7 @@ import com.example.demo.service.MemberService;
 import jakarta.servlet.http.HttpSession;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true") //쿠키 설정
+@CrossOrigin(origins = "http://localhost:5174", allowCredentials = "true") //쿠키 설정
 @RequestMapping("/api")
 public class MemberController {
 	

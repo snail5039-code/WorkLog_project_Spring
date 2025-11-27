@@ -18,12 +18,12 @@ public interface WorkLogDao {
 				set regDate = now()
 					, updateDate = now()
 					, title = #{workLogData.title}
-					, mainContent = #{workLogData.mainContent}}
+					, mainContent = #{workLogData.mainContent}
 					, sideContent = #{workLogData.sideContent}
 					, memberId = #{memberId}               
 					, boardId = 1                   
 			""")
-	public WorkLog writeWorkLog(@Param("workLogData") WorkLog workLogData, @Param("memberId") int memberId);
+	public void writeWorkLog(@Param("workLogData") WorkLog workLogData, @Param("memberId") int memberId);
 
 	@Select("""
 			select w.*, m.loginId as writerName
@@ -51,5 +51,8 @@ public interface WorkLogDao {
 				where id = #{id}
 			""")
 	public int doModify(@Param("id") int id, @Param("modifyData") WorkLog modifyData);
+
+	@Select("SELECT LAST_INSERT_ID()")
+	public int getLastInsertId();
 
 }

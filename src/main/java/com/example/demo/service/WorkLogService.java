@@ -16,8 +16,8 @@ public class WorkLogService {
 		this.workLogDao = workLogDao;
 	}
 	
-	public WorkLog writeWorkLog(WorkLog workLogData, int memberId) {
-		return this.workLogDao.writeWorkLog(workLogData, memberId);
+	public void writeWorkLog(WorkLog workLogData, int memberId) {
+		this.workLogDao.writeWorkLog(workLogData, memberId);
 	}
 
 	public List<WorkLog> showList() {
@@ -30,6 +30,10 @@ public class WorkLogService {
 
 	public int doModify(int id, WorkLog modifyData) {
 		return this.workLogDao.doModify(id, modifyData);
+	}
+
+	public int getLastInsertId() {
+		return this.workLogDao.getLastInsertId();
 	}
 	
 }

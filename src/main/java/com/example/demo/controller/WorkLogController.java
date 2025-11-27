@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,7 +20,7 @@ import com.example.demo.service.WorkLogService;
 import jakarta.servlet.http.HttpSession;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173" , allowCredentials = "true")
+@CrossOrigin(origins = "http://localhost:5174" , allowCredentials = "true")
 @RequestMapping("/api")
 public class WorkLogController {
 
@@ -29,7 +28,7 @@ public class WorkLogController {
 	private FileAttachService fileAttachService;
 	private WorkLogService workLogService;
 	// 의존성 주입
-	public WorkLogController(WorkLogService workLogService, FileAttachDao fileAttachDao, FileAttachService fileAttachService) {
+	public WorkLogController(WorkLogService workLogService, FileAttachService fileAttachService) {
 		this.workLogService = workLogService;
 		this.fileAttachService = fileAttachService;
 	}
@@ -43,14 +42,13 @@ public class WorkLogController {
 		workLogData.setTitle(title);
 		workLogData.setMainContent(mainContent);
 		workLogData.setSideContent(sideContent);
-		System.out.println("세션 memberId = " + session.getAttribute("logindeMemberId"));
-		int memberId =  (int) session.getAttribute("logindeMemberId");
-		System.out.println("세션 memberId = " + session.getAttribute("logindeMemberId"));
-		WorkLog saveWorkLog = this.workLogService.writeWorkLog(workLogData, memberId);
 		
-		int workLogId = saveWorkLog.getId();
+		int memberIdObj = (int) session.getAttribute("logindeMemberId"); 
 		
-		// 첨부 파일 처리, 맨 위는 로그인 안된 상태에서 넘길때 방지
+		this.workLogService.writeWorkLog(workLogData, memberIdObj);
+		
+		int workLogId = this.workLogService.getLastInsertId();
+//		 첨부 파일 처리, 맨 위는 로그인 안된 상태에서 넘길때 방지
 		if(workLogId == 0) {
 			System.out.println("저장 실패 파일 처리 건너뛰기를 실행");
 		} else { // 밑에는 가져온 파일들의 값이 있을 때 순회를 돌려서 있는 파일만 골라서 넘기겠다라는 의미임
