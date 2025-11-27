@@ -36,30 +36,39 @@ public class MemberController {
 	}
 	
 	@PostMapping("/usr/member/login")
-	public ResponseEntity<String> login(@RequestBody Member loginData, HttpSession session) {
+	public int login(@RequestBody Member loginData, HttpSession session) {
 	    
 	    Member member = this.memberService.getMemberLoginId(loginData);
 
 	    if(member == null) {
 	    	 String message = String.format("%s는 존재하지 않는 아이디 입니다.", loginData.getLoginId());
-	    	 return new ResponseEntity<>(message, HttpStatus.UNAUTHORIZED);
+	    	 return 0;
 	    }
 	    
 	    if(!member.getLoginPw().equals(loginData.getLoginPw())) {
-	    	return new ResponseEntity<>("비밀번호 틀림", HttpStatus.UNAUTHORIZED);
+	    	return 0;
 	    }
 	    
 	    session.setAttribute("logindeMemberId", member.getId());
 	    
-	    return new ResponseEntity<>("환영", HttpStatus.OK);
+	    return member.getId();
+	}
+	
+	@GetMapping("/usr/member/session")
+	public int addSession(HttpSession session) {
+		// null 포인터 땜에 인티져로
+		// 이게 지속적으로 상태 보는 거임!
+		Integer isLoginedId = (Integer) session.getAttribute("logindeMemberId");
+		
+	    return isLoginedId != null ? isLoginedId : 0;
 	}
 	
 	@PostMapping("/usr/member/logout")
-	public ResponseEntity<String> logout(HttpSession session) {
+	public int logout(HttpSession session) {
 	    
 		session.invalidate();
 	    
-	    return new ResponseEntity<>("로그아웃 성공함", HttpStatus.OK);
+	    return 0;
 	}	
 	
 	@GetMapping("/usr/member/checkLoginId")
