@@ -1,7 +1,5 @@
 package com.example.demo.controller;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,7 +13,7 @@ import com.example.demo.service.MemberService;
 import jakarta.servlet.http.HttpSession;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5174", allowCredentials = "true") //쿠키 설정
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true") //쿠키 설정
 @RequestMapping("/api")
 public class MemberController {
 	

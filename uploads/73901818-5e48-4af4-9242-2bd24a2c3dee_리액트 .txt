@@ -1,0 +1,27 @@
+state 함수 사용 
+
+let [a, b] = useState('남자 코드 추천'); 
+
+자주 바뀌는 날짜나 글제목 등 임시저장 느낌으로 사용 
+
+eslint-disable 워닝 메세지 제거 
+
+좋아요 버튼 누르면 올리기
+
+  function good(){
+    change(좋아요+1)
+  }
+
+  let post = '강남 우동 맛집';
+  let [a, b] = useState('남자 코드 추천'); 
+  let [좋아요, change] = useState(0);
+  return (
+    <div className="App">
+      <div>
+        <h4>업무일지관리 시스템</h4>
+        <input></input>
+        <div style={{color : 'red'}}></div>
+        <h4>{ a } <span onClick={good}>❤</span>{좋아요}</h4>
+      </div>
+    </div>
+  );
