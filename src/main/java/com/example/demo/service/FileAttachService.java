@@ -2,6 +2,7 @@ package com.example.demo.service;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -52,5 +53,8 @@ public class FileAttachService {
 			System.out.println("저장 실패 에러 발생");
 		}
 	}
-	
+	public List<FileAttach> getFilesByWorkLogId(int workLogId) {
+        // WorkLog 상세 조회 시 첨부 파일 정보를 함께 보여주기 위해 필요합니다.
+        return this.fileAttachDao.getFilesByWorkLogId(workLogId);
+    }
 }

@@ -1,7 +1,10 @@
 package com.example.demo.dao;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 
 import com.example.demo.dto.FileAttach;
 
@@ -20,5 +23,13 @@ public interface FileAttachDao {
 	void fileInsert(FileAttach fileAttach);
 
 	
+	
+	@Select("""
+			select *
+				from fileAttach
+				where workLogId = #{workLogId}
+				order by desc
+			""")
+	List<FileAttach> getFilesByWorkLogId(int workLogId);
 
 }
