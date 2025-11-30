@@ -80,14 +80,19 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
-			<artifactId>spring-ai-tika-document-reader</artifactId>
+			<artifactId>spring-ai-pdf-document-reader</artifactId>
 		</dependency>
-		    <!-- Tika Core Module -->
+		
+		<dependency>
+	        <groupId>commons-io</groupId>
+	        <artifactId>commons-io</artifactId>
+	        <version>2.16.1</version> 
+	    </dependency>
 	    <dependency>
 	        <groupId>org.apache.tika</groupId>
 	        <artifactId>tika-core</artifactId>
-	        <version>2.9.2</version> <!-- Tika 최신 안정 버전 (현재 기준) -->
-	    </dependency>
+	        <version>2.9.2</version>
+	    </dependency>	    
 	</dependencies>
 
 	<build>

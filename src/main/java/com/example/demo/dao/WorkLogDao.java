@@ -31,6 +31,7 @@ public interface WorkLogDao {
 				from workLog as w
 				inner join member as m
 				on w.memberId = m.id 
+				order by id desc
 			""")
 	public List<WorkLog> showList();
 

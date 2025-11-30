@@ -28,8 +28,15 @@ public interface FileAttachDao {
 			select *
 				from fileAttach
 				where workLogId = #{workLogId}
-				order by desc
+				order by id desc
 			""")
 	List<FileAttach> getFilesByWorkLogId(int workLogId);
+	//파일 이름가져오기!
+	@Select("""
+			select fileName
+				from fileAttach
+				where filePath = #{filePath}
+			""")
+	String getOriginalFilename(String filePath);
 
 }

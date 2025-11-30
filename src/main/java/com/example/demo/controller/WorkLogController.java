@@ -1,8 +1,18 @@
 package com.example.demo.controller;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 import org.apache.tika.Tika;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.example.demo.dto.WorkLog;
 import com.example.demo.service.FileAttachService;
@@ -26,8 +37,10 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/api")
 public class WorkLogController {
 
+	@Value("${file.upload-dir}") 
+	private String uploadDir;
+	
 	private final WorkChatAIService workChatAIService;
-
 	private FileAttachService fileAttachService;
 	private WorkLogService workLogService;
 	// 문서 내용 추출 tika 라이브러리 추가 및 객체 생성
@@ -179,30 +192,52 @@ public class WorkLogController {
 		}
 		return defaultGuide;
 	}
-
-//	private String getGuidelineAttachment(List<MultipartFile> files) {
-//		// 만약에 파일 양식이 없을 경우 기본 양식을 활용
-//		if(files == null || files.isEmpty()) {
-//			return "1. 오늘 목표:\n2. 주요 성과:\n3. 남은 일:";
-//		}
-//		// txt로 찾는 파일 찾기 
-//		for(MultipartFile file : files) { // subString(getOriginalFilename().lastIndexof(".")); 요렇게 확장자 상관 없이 이렇게 할 수 있음
-//			if(file.getOriginalFilename() != null && file.getOriginalFilename().toLowerCase().endsWith(".txt")) {
-//				try {
-//					// 파일의 모든 데이터를 가져와서 우리말로 읽기 쉬운 문자열로 저장하삼 이라는 뜻 getBytes이거는 안에 내장된 함수임
-//					String content = new String(file.getBytes(), StandardCharsets.UTF_8);
-//					
-//					System.out.println("첨부파일 양식 추출 성공 ");
-//					
-//					return content.trim();
-//				} catch (Exception e) {
-//					System.err.println("첨부파일 읽기 실패");
-//					return "1. 오늘 목표:\n2. 주요 성과:\n3. 남은 일:";
-//				}
-//			}
-//		}
-//		return "1. 오늘 목표:\n2. 주요 성과:\n3. 남은 일:";
-//	}
+	// 파일 다운로드 하게하기
+	@GetMapping("/usr/work/download/{storedFilename}")
+	public ResponseEntity<Resource> downloadFile(@PathVariable String storedFilename) {
+		// db 저장된 파일명을 이용 원본 파일명 조회 하는 것!
+		String originalFilename = fileAttachService.getOriginalFilename(storedFilename);
+		
+		if(originalFilename == null) {
+			System.out.println("파일을 찾을 수 없음!");
+			log.error("파일을 찾을 수가 없음..");
+		}
+		// 파일 경로 찾는 것임!
+		Path filePath = Paths.get(uploadDir).resolve(storedFilename).normalize();
+		log.info("시도된 파일 다운로드 경로: {}", filePath.toAbsolutePath()); // toAbsolutePath()를 사용해 절대 경로를 확인	
+		Resource resource;
+		
+		try {
+			resource = new UrlResource(filePath.toUri());
+		} catch (Exception e) {
+			log.error("파일 경로가 올바르지 않음: {}", storedFilename, e);
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "파일 경로가 올바르지 않습니다.");
+		}
+		// exists 실제로 있는지 파일이, isReadable 권한이 있는지 
+		if(!resource.exists() || !resource.isReadable()) {
+			log.error("파일을 찾을 수가 없음..");
+			System.out.println("파일을 찾을 수 없음!");
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다.");
+		}
+		
+		// 다운로드 해야할 파일, 파일 이름 알려주는 역할임!
+		String contentDisposition = "";
+		
+		// 브라우저한테 인코딩해서 파일 보낼거임!
+		try {
+			// ISO-8859-1 이걸로 변환해서 안보내면 깨짐 
+			 String encodedFilename = new String(originalFilename.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1);	
+			 // attachment;filename=\ 요거는 텍스트 명령어라서 규칙임, 첨부파일이니깐 다운로드해라, 이름은 저거임 이라는 것!
+			 contentDisposition =  "attachment;filename=\"" + encodedFilename + "\"";
+		} catch (Exception e) {
+			log.warn("응 인코딩 실패!");
+			contentDisposition =  "attachment;filename=\"" + originalFilename + "\"";
+		}
+		// contentType(MediaType.APPLICATION_OCTET_STREAM) 이거는 바이너리 파일임. 약속된거라서 그냥 쓰면 됌
+		// HttpHeaders.CONTENT_DISPOSITION, contentDisposition 이것도 약속임 파일 이름 알려주는 거 위에 다운로드 하라는 것도 같이 그래서 실제 데이터를 body(resource) 요기에 담는거!
+		return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition).body(resource);
+		
+	}
 
 	@GetMapping("/usr/work/list")
 	public List<WorkLog> showList() {

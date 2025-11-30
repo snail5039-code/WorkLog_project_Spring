@@ -57,4 +57,8 @@ public class FileAttachService {
         // WorkLog 상세 조회 시 첨부 파일 정보를 함께 보여주기 위해 필요합니다.
         return this.fileAttachDao.getFilesByWorkLogId(workLogId);
     }
+
+	public String getOriginalFilename(String filePath) {
+		return fileAttachDao.getOriginalFilename(filePath);
+	}
 }
