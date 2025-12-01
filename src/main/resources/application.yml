@@ -14,7 +14,7 @@ spring:
     ollama:
       base-url: http://localhost:11434
       chat:
-        model: gemma:2b
+        model: llama3:8b-instruct-q4_K_M
 file:
   upload-dir: ${user.dir}/uploads
 #이거는 파일 업로드 할때 경로 알아서 찾으라고 만든거임!
