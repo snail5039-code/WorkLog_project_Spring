@@ -6,14 +6,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.tika.Tika;
-import java.io.InputStream;
-import org.apache.tika.parser.AutoDetectParser;
-import org.apache.tika.metadata.Metadata;
-import org.apache.tika.parser.ParseContext;
-import org.apache.tika.sax.ContentHandlerDecorator;
-import org.apache.tika.sax.ToHTMLContentHandler;
-import org.xml.sax.ContentHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -35,6 +27,7 @@ import com.example.demo.dto.WorkLog;
 import com.example.demo.service.FileAttachService;
 import com.example.demo.service.WorkChatAIService;
 import com.example.demo.service.WorkLogService;
+import com.example.demo.util.FileTextExtractor;
 
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
@@ -51,35 +44,51 @@ public class WorkLogController {
 	private final WorkChatAIService workChatAIService;
 	private FileAttachService fileAttachService;
 	private WorkLogService workLogService;
-	// 문서 내용 추출 tika 라이브러리 추가 및 객체 생성
-	private Tika tika = new Tika();
+	private FileTextExtractor fileTextExtractor;
 	
-	// 자주 사용되서 전역 변수로 뺀거임 기본 값!
-	private static final List<String> DEFAULT_HEADERS = List.of(
-			"오늘 목표", 
-		    "주요 성과", 
-		    "할 일 & 한 일", 
-		    "인사이트 & 느낀점", 
-		    "내일을 위한 메모"
-			);
 	// 의존성 주입
 	public WorkLogController(WorkLogService workLogService, FileAttachService fileAttachService,
-			WorkChatAIService workChatAIService) {
+			WorkChatAIService workChatAIService, FileTextExtractor fileTextExtractor) {
 		this.workLogService = workLogService;
 		this.fileAttachService = fileAttachService;
 		this.workChatAIService = workChatAIService;
+		this.fileTextExtractor = fileTextExtractor;
 	}
 
 	@PostMapping("/usr/work/workLog") // MultipartFile 이거는 스프링부트 내장이라서 바로 사용 가능함, 리액트에서 multiple를 받아온거!
 	public String writeWorkLog(String title, String mainContent, String sideContent, List<MultipartFile> files,
 			HttpSession session) {
+		// 여기는 ai한테 입력된 값 넘기는 곳!
+		String finalAiReport = null;
+		// ai 처리를 위해 템플릿 파일, 내용을 준비 
+		MultipartFile templateFile = null; //combinedNewContent 결합된 새로운 내용
+		String combinedNewContent = "제목: " + title + "\n\n" + mainContent + "\n\n보조 내용: " + sideContent;
+		
+		//템플릿 파일을 지정(업로드 첫번째 파일)
+		if(files != null && !files.isEmpty()) {
+			templateFile = files.get(0);
+			// ai를 호출해서 템플릿 분석, 내용 채우기 실시
+			try {
+				finalAiReport = this.workChatAIService.generateFinalReport(templateFile, combinedNewContent);
+				System.out.println("AI 생성 Markdown 보고서:\n" + finalAiReport);
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.err.println("AI 보고서 생성 중 오류 발생, 원본 내용 저장:" + e.getMessage());
+			}
+		}
+		
 		int memberIdObj = (int) session.getAttribute("logindeMemberId");
-
+		
 		// MultipartFile 이거는 따로 테이블 만들어서 보관해야됌!
 		WorkLog workLogData = new WorkLog();
 		workLogData.setTitle(title);
 		workLogData.setMainContent(mainContent);
 		workLogData.setSideContent(sideContent);
+		
+		// ai가 생성한 최종 보고서 담기 
+		if(finalAiReport != null && !finalAiReport.trim().isEmpty()) {
+			workLogData.setSummaryContent(finalAiReport);
+		}
 		
 		this.workLogService.writeWorkLog(workLogData, memberIdObj);
 

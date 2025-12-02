@@ -11,10 +11,21 @@ spring:
     username: root
     password: 
   ai:
-    ollama:
-      base-url: http://localhost:11434
+    chat:
+      client:
+        enabled: true
+    openai:
+      api-key: ${OPENAI_API_KEY:default-key-if-needed} 
       chat:
-        model: llama3:8b-instruct-q4_K_M
+        enabled: true
+        model: gpt-4o-mini  
+#  ai:
+#    ollama:
+#      base-url: http://localhost:11434
+#      chat:
+#        model: llama3:8b-instruct-q4_K_M
+#        response-format:
+#          type: json_object
 file:
   upload-dir: ${user.dir}/uploads
 #이거는 파일 업로드 할때 경로 알아서 찾으라고 만든거임!
