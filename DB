@@ -44,6 +44,9 @@ CREATE TABLE fileAttach(
 
 ALTER TABLE fileAttach MODIFY COLUMN fileSize BIGINT UNSIGNED NOT NULL;
 
+TRUNCATE TABLE workLog;
+TRUNCATE TABLE fileAttach;
+
 SELECT *
     FROM workLog;
     

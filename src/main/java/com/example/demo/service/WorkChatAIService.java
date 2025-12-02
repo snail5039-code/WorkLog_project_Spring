@@ -2,68 +2,77 @@ package com.example.demo.service;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j; // Lombok의 로깅 어노테이션
+import com.example.demo.util.FileTextExtractor;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j // 이 어노테이션이 'log' 객체를 자동으로 생성합니다.
 public class WorkChatAIService {
 
-    // @Slf4j를 사용하므로 수동 로거 선언은 모두 제거되었습니다.
-    
-    // final로 생성자 주입
-    private final ChatClient chatClient;  
+	// final로 생성자 주입
+	private final ChatClient chatClient;
+	private final FileTextExtractor fileTextExtractor;
+	private final ObjectMapper objectMapper;
 
-    public String summarizeWorkLog(String workContent, String formatGuideline) {
-        // @Slf4j로 생성된 log 객체를 사용
-        log.info("AI 요약 서비스 시작.");
-        log.debug("입력된 업무 내용 길이: {}", workContent.length());
-        log.debug("입력된 양식: {}", formatGuideline);
+	// AI는 빌더로 주입
+	public WorkChatAIService(ChatClient.Builder chatClientBuilder, FileTextExtractor fileTextExtractor) {
+		this.chatClient = chatClientBuilder.build();
+		this.fileTextExtractor = fileTextExtractor;
+		this.objectMapper = new ObjectMapper();
+	}
 
-        // AI에게 보낼 최종 프롬프트를 구성합니다.
-        // 이 프롬프트가 AI의 응답 형태를 결정합니다.
-        String prompt = String.format(
-                """
-                당신은 전문적인 업무일지 요약 전문가입니다.
-                다음 '업무 내용'을 분석하여, 아래 '업무일지 양식'에 맞춰 내용을 요약하고 재구성하여 **결과만** 반환하세요.
-                제목이나 추가 설명 없이, 오직 양식에 따른 요약 내용만 마크다운 형식으로 한국어로 출력해야 합니다.
-                
-                **[추가 지침]**
-                1. '업무 내용'에 '오늘 목표'가 명시적으로 없는 경우, **'주요 성과'를 바탕으로 가장 합리적인 목표를 추론하여** '오늘 목표' 섹션을 채우십시오.
-                2. 만약 내용이 전혀 없더라도 양식의 모든 항목을 채워야 합니다.
-                
-                --- 업무일지 양식 ---
-                %s
-                ----------------------
+	// extractAndStructurize 추출 및 구조화라는 뜻 -> 파일 형식 추출
+	public String extractAndStructurize(MultipartFile file) {
+		String cleanJson = null;
+		try {
+			String rawText = fileTextExtractor.extractText(file);
 
-                --- 업무 내용 ---
-                %s
-                ----------------
-                """, 
-                formatGuideline, 
-                workContent
-            );
-        
-        // 💡 ChatClient를 사용하여 AI 모델에 요청을 보내고 응답을 받습니다.
-        // 요거는 그냥 명령을 사용자 입력으로 전달, 모델 호출, 응답 내용 추출 이런느낌임 
-        String aiResponse = "";
-        try {
-            aiResponse = chatClient.prompt()
-                .user(prompt)
-                .call()
-                .content();
-            
-            log.info("AI 응답 성공. 내용: {}", aiResponse.trim());
-        } catch (Exception e) {
-            // 💡 ChatClient 통신 자체에서 예외 발생 시 로그 기록
-            log.error("AI ChatClient 통신 중 심각한 오류 발생:", e);
-            // 🚨 DB에 오류 메시지를 저장하여 어떤 통신 오류인지 확인합니다.
-            return "AI 통신 오류 발생: " + e.getMessage(); 
-        }
+			if (rawText.trim().isEmpty()) {
+				return "문서에서 유효한 텍스트를 추출할 수 없습니다.";
+			} // 프롬프트로 규칙을 정의.
+			cleanJson = chatClient.prompt().system("""
+					당신은 문서 구조화 전문가입니다.
+					입력된 텍스트를 분석하여 문서의 양식과 필드를 스스로 파악하고, 모든 데이터를 JSON 형태로 추출하세요.
+					
+					규칙: 
+					1. 미리 정의된 스키마 없이 텍스트 내용 기반으로 JSON 키를 만드세요.
+					2. **표(Table) 형태만 JSON 배열([{}])로 표현**하세요.
+					3. **특히 PDF 문서에서 추출된 것처럼 텍스트가 깨져있더라도, 문서 이미지(사용자 참조)를 참고하여 논리적인 표 구조(행/열)를 재구성**하고 배열로 만드세요.
+					4. **단일 필드(예: '팀명', '작성자', '비고' 등)는 절대 배열로 만들지 말고, 단일 Key-Value 쌍으로 유지**하세요.
+					5. **응답은 오직 순수한 JSON 객체({"..." : "..."})만 반환**해야 하며, 앞뒤에 어떠한 설명이나 Markdown 백틱(`)도 포함하지 마세요.
+					6. 표 추출 시 비어 있는 셀은 null 또는 빈 문자열("")로 채우세요.
+					
+					""").user("문서 내용:\n---\n" + rawText).call().content();
 
-        // 불필요한 공백 제거 후 반환
-        return aiResponse.trim();
-    }
+		} catch (Exception e) {
+			e.printStackTrace();
+			return "문서 처리 중 오류 발생: " + e.getMessage();
+		}
+		return cleanJson.replace("Here is the JSON data in Markdown format:", "");
+	}
+
+	// 최종 생성보고서라는 뜻
+	public String generateFinalReport(MultipartFile templateFile, String newContent) throws Exception {
+		String templateStructureJson = extractAndStructurize(templateFile); // 텍스트 추출해서 양식 구조를 얻는다.
+
+		if (templateStructureJson.startsWith("문서 처리 중 오류 발생")
+				|| templateStructureJson.startsWith("문서에서 유효한 텍스트를 추출할 수 없습니다.")) {
+			throw new RuntimeException("템플릿 양식 분석 오류: " + templateStructureJson);
+		} // 추출된 값을 받아와서 템플릿을 만들고 내용을 채운다.
+		return chatClient.prompt()
+	            .system("""
+	                당신은 문서 자동 생성 및 가공 전문가입니다.
+	                당신의 역할은 두 개의 입력(필드 구조, 새 내용)을 받아 하나의 최종 JSON 보고서 객체를 생성하는 것입니다.
+	                
+	                **요구사항:**
+	                1. 첫 번째 입력의 JSON 필드 구조(키)를 **그대로 유지**하세요.
+	                2. 두 번째 입력의 **새 작업 내용을 요약 및 가공하여 적절한 필드에 값으로 채우세요.**
+	                3. 원본 템플릿의 양식이 표(Table) 형태였고 그것이 JSON 배열([{}])로 추출되었다면, 해당 배열 구조를 유지하고 요약된 내용을 객체에 채우세요. 비어있는 배열 요소는 내용이 있다면 채우고, 내용이 없다면 비워두거나 제거하세요. (단, 템플릿 구조 자체는 변경하지 마세요.)
+	                4. **응답은 오직 하나의 순수한 JSON 객체만 반환**해야 하며, 앞뒤에 어떠한 설명, Markdown 백틱(`), 또는 추가적인 JSON 객체도 포함하지 마세요.
+	                5. 한국어로 내용을 채우세요.
+	            """)
+	            .user(String.format("### 템플릿 필드 구조 (JSON)\n%s\n\n### 새 작업 내용\n%s", templateStructureJson, newContent))
+	            .call().content();
+	}
 }

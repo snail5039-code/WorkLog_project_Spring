@@ -5,7 +5,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -27,6 +26,7 @@ import com.example.demo.dto.WorkLog;
 import com.example.demo.service.FileAttachService;
 import com.example.demo.service.WorkChatAIService;
 import com.example.demo.service.WorkLogService;
+import com.example.demo.util.FileTextExtractor;
 
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
@@ -43,53 +43,52 @@ public class WorkLogController {
 	private final WorkChatAIService workChatAIService;
 	private FileAttachService fileAttachService;
 	private WorkLogService workLogService;
-	// 문서 내용 추출 tika 라이브러리 추가 및 객체 생성
-	private Tika tika = new Tika();
-
+	private FileTextExtractor fileTextExtractor;
+	
 	// 의존성 주입
 	public WorkLogController(WorkLogService workLogService, FileAttachService fileAttachService,
-			WorkChatAIService workChatAIService) {
+			WorkChatAIService workChatAIService, FileTextExtractor fileTextExtractor) {
 		this.workLogService = workLogService;
 		this.fileAttachService = fileAttachService;
 		this.workChatAIService = workChatAIService;
+		this.fileTextExtractor = fileTextExtractor;
 	}
 
 	@PostMapping("/usr/work/workLog") // MultipartFile 이거는 스프링부트 내장이라서 바로 사용 가능함, 리액트에서 multiple를 받아온거!
 	public String writeWorkLog(String title, String mainContent, String sideContent, List<MultipartFile> files,
 			HttpSession session) {
-		int memberIdObj = (int) session.getAttribute("logindeMemberId");
-
-		String formatGuideline = getGuideContent(files); // 밑에서 있나 없나 확인하고 가져온거임!
-
-		// ai한테 보낼 데이터 준비 모든 거를 하나로 합치고 summaryContent 요거는 등록 후 상세보기할 때 나오는 공간임
-		StringBuilder fullContentBuilder = new StringBuilder(); // 모든 문자열 합치려고 하는것!
-		fullContentBuilder.append("제목: ").append(title).append("\n").append("메인: ").append(mainContent).append("\n")
-				.append("비고: ").append(sideContent).append("\n");
+		// 여기는 ai한테 입력된 값 넘기는 곳!
+		String finalAiReport = null;
+		// ai 처리를 위해 템플릿 파일, 내용을 준비 
+		MultipartFile templateFile = null; //combinedNewContent 결합된 새로운 내용
+		String combinedNewContent = "제목: " + title + "\n\n" + mainContent + "\n\n보조 내용: " + sideContent;
 		
-		// 첨부파일 양식하고 입력한 내용 하고 합치는 거임!
-		fullContentBuilder.append(allFileContent(files));
-		
-		// Ai한테 넘길 준비 
-		String fullContentForAI = fullContentBuilder.toString();
-		String summaryContent = "";
-		
-		// 매개변수로 넘겨서 서비스에서 요약 시키는거 그리고 되면 summaryContent 여기에 담음
-		try {
-			summaryContent = workChatAIService.summarizeWorkLog(fullContentForAI, formatGuideline);
-			System.out.println("요약 완료");
-		} catch (Exception e) {
-			System.err.println("오류 발생...");
-			summaryContent = "요약 실패 내용 확인!";
+		//템플릿 파일을 지정(업로드 첫번째 파일)
+		if(files != null && !files.isEmpty()) {
+			templateFile = files.get(0);
+			// ai를 호출해서 템플릿 분석, 내용 채우기 실시
+			try {
+				finalAiReport = this.workChatAIService.generateFinalReport(templateFile, combinedNewContent);
+				System.out.println("AI 생성 Markdown 보고서:\n" + finalAiReport);
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.err.println("AI 보고서 생성 중 오류 발생, 원본 내용 저장:" + e.getMessage());
+			}
 		}
-
+		
+		int memberIdObj = (int) session.getAttribute("logindeMemberId");
+		
 		// MultipartFile 이거는 따로 테이블 만들어서 보관해야됌!
-		// 여기서 같이 넘김 요약 파일을
 		WorkLog workLogData = new WorkLog();
 		workLogData.setTitle(title);
 		workLogData.setMainContent(mainContent);
 		workLogData.setSideContent(sideContent);
-		workLogData.setSummaryContent(summaryContent);
-
+		
+		// ai가 생성한 최종 보고서 담기 
+		if(finalAiReport != null && !finalAiReport.trim().isEmpty()) {
+			workLogData.setSummaryContent(finalAiReport);
+		}
+		
 		this.workLogService.writeWorkLog(workLogData, memberIdObj);
 
 		int workLogId = this.workLogService.getLastInsertId();
@@ -107,91 +106,7 @@ public class WorkLogController {
 		}
 		return "데이터 입력 완료";
 	}
-
-	private String allFileContent(List<MultipartFile> files) {
-		int MAX_CHARACTERS = 4000; // 글자수제한
-		StringBuilder fileContent = new StringBuilder("\n--- 첨부 파일 내용 ---\n"); // 첨부 파일 글자 이어 붙이기
-		boolean contentFound = false; // 첨부파일에서 의미있는 내용 추출 됬는지 확인하는 변수
-
-		// 파일 찾기임!!
-		if (files != null) {
-			for (MultipartFile file : files) {
-				String originalFilename = file.getOriginalFilename();
-				// 중복 추출 방지!
-				if (originalFilename == null) {
-					continue;
-				}
-
-				String lowerName = originalFilename.toLowerCase(); // 소문자 변환
-				// 소문자로 변환해서 뒤에 붙은 파일명 찾기
-				if (lowerName.endsWith(".txt") || lowerName.endsWith(".doc") || lowerName.endsWith(".docx")
-						|| lowerName.endsWith(".hwp") || lowerName.endsWith(".pdf")) {
-
-					try { // 티카 라이브러리가 파일안에 있는 내용을 문자열로 공백 없이 받아옴
-						String content = tika.parseToString(file.getInputStream()).trim();
-
-						// 파일 내용이 공백만 있는지 확인
-						if (!content.isBlank()) {
-
-							String limitedContent; // 글자수 제한
-							boolean isTruncated = false; // 글자수가 4000자라 그전에 잘렷는지 알려주는 변수, 근데 굳이 안쓸래
-							// 4000자 보다 길면 4000자까지 잘라라 그리고 트루 값을 남겨 알려줌
-							if (content.length() > MAX_CHARACTERS) {
-								limitedContent = content.substring(0, MAX_CHARACTERS) + "\n... [내용이 길어 중간 생략]...";
-								isTruncated = true;
-							} else {
-								limitedContent = content; // 오류 날 수도있으니 넣어준 것
-							}
-							fileContent.append("[파일명 :").append(originalFilename).append("\n").append(limitedContent)
-									.append("\n\n");
-							log.info("정상 적으로 추출 성공");
-						}
-					} catch (Exception e) {
-						log.error("문서 내용 읽기 실패");
-					}
-				} else if (lowerName.endsWith(".jpg") || lowerName.endsWith(".png")) {
-					System.out.println("이미지 파일은 안됌");
-				}
-			}
-		} // 있으면 문자열 반환, 없으면 공백 출력
-		return contentFound ? fileContent.toString() : "";
-
-	}
-
-	private String getGuideContent(List<MultipartFile> files) {
-
-		final String defaultGuide = "1. 오늘 목표:\\n2. 주요 성과:\\n3. 남은 일:";
-		// 안에 파일 없으면 기본값으로 설정
-		if (files == null || files.isEmpty())
-			return defaultGuide;
-
-		// 티카에서 파악하는 파일 형식임
-		final List<String> tikaFile = List.of(".txt", ".doc", ".docx", ".hwp", ".pdf");
-
-		for (MultipartFile file : files) {
-			String originalFilename = file.getOriginalFilename();
-			// 순회하면서 파일 이름을 변수에 넣는다. 없으면 위로 올림!
-			if (originalFilename == null)
-				continue;
-
-			String lowerName = originalFilename.toLowerCase();
-			// 여기 리스트 안에 있는 파일 중 하나라도 겹치는가를 확인!~
-			boolean tilkaFiles = tikaFile.stream().anyMatch(lowerName::endsWith);
-			// 만약에 겹쳐서 참이 되면 티카를 사용해서 문서 내용을 추출한다.
-			if (tilkaFiles) {
-				try {
-					String content = tika.parseToString(file.getInputStream()).trim();
-					log.info("첨부파일 추출 성공함 tika로");
-					return content;
-					// 실패하면 기본 양식 출력
-				} catch (Exception e) {
-					log.error("실패함 ㅠ");
-					return defaultGuide;
-				}
-			}
-		}
-		return defaultGuide;
-	}
+	
 	// 파일 다운로드 하게하기
 	@GetMapping("/usr/work/download/{storedFilename}")
 	public ResponseEntity<Resource> downloadFile(@PathVariable String storedFilename) {
