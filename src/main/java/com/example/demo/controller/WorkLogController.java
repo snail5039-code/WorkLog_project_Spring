@@ -40,7 +40,7 @@ public class WorkLogController {
 
 	@Value("${file.upload-dir}") 
 	private String uploadDir;
-	
+	  
 	private final WorkChatAIService workChatAIService;
 	private FileAttachService fileAttachService;
 	private WorkLogService workLogService;
