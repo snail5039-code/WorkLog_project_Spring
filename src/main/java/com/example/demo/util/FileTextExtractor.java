@@ -17,7 +17,7 @@ import kr.dogfoot.hwplib.object.HWPFile;
 import kr.dogfoot.hwplib.reader.HWPReader;
 import kr.dogfoot.hwplib.tool.textextractor.TextExtractMethod;
 import kr.dogfoot.hwplib.tool.textextractor.TextExtractor;
-
+ 
 @Component //파일텍스트 추출기(파일 형식 별로) 
 public class FileTextExtractor {
 	public String extractText(MultipartFile file) throws IOException {
