@@ -10,15 +10,9 @@ spring:
     url: jdbc:mysql://localhost:3306/workLog_project
     username: root
     password: 
-  ai:
-    chat:
-      client:
-        enabled: true
-    openai:
-      api-key: ${OPENAI_API_KEY:default-key-if-needed} 
-      chat:
-        enabled: true
-        model: gpt-4o-mini  
+  config:
+    import:
+      - classpath:ai.yml
 #  ai:
 #    ollama:
 #      base-url: http://localhost:11434

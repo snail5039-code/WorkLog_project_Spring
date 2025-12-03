@@ -34,3 +34,6 @@ build/
 
 # 이 파일(.env)은 비밀 정보가 담겨 있으니 절대 Git에 올리지 마세요!
 .env
+
+# .gitignore 파일 내용
+ai.yml

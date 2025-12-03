@@ -20,7 +20,7 @@ public interface WorkLogDao {
 					, title = #{workLogData.title}
 					, mainContent = #{workLogData.mainContent}
 					, sideContent = #{workLogData.sideContent}
-					, summaryContent = 1
+					, summaryContent = #{workLogData.summaryContent}
 					, memberId = #{memberId}               
 					, boardId = 1                   
 			""")

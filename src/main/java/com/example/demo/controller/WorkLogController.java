@@ -4,7 +4,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -70,7 +69,6 @@ public class WorkLogController {
 			// ai를 호출해서 템플릿 분석, 내용 채우기 실시
 			try {
 				finalAiReport = this.workChatAIService.generateFinalReport(templateFile, combinedNewContent);
-				System.out.println("AI 생성 Markdown 보고서:\n" + finalAiReport);
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.err.println("AI 보고서 생성 중 오류 발생, 원본 내용 저장:" + e.getMessage());
