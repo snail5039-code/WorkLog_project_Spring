@@ -92,7 +92,7 @@ public class WorkLogController {
 
 		int workLogId = this.workLogService.getLastInsertId();
 //		 첨부 파일 처리, 맨 위는 로그인 안된 상태에서 넘길때 방지
-		if (workLogId == 0) {
+		if (workLogId == 0) { 
 			System.out.println("저장 실패 파일 처리 건너뛰기를 실행");
 		} else { // 밑에는 가져온 파일들의 값이 있을 때 순회를 돌려서 있는 파일만 골라서 넘기겠다라는 의미임
 			if (files != null && !files.isEmpty()) {
