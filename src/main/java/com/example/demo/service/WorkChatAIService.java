@@ -1,9 +1,15 @@
 package com.example.demo.service;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.demo.dao.WorkLogDao;
+import com.example.demo.dto.Template;
 import com.example.demo.util.FileTextExtractor;
 import com.fasterxml.jackson.databind.ObjectMapper; 
 
@@ -14,12 +20,14 @@ public class WorkChatAIService {
     private final ChatClient chatClient;
     private final FileTextExtractor fileTextExtractor;
     private final ObjectMapper objectMapper;
+    private final WorkLogDao workLogDao;
 
     // AI는 빌더로 주입
-    public WorkChatAIService(ChatClient.Builder chatClientBuilder, FileTextExtractor fileTextExtractor) {
+    public WorkChatAIService(ChatClient.Builder chatClientBuilder, FileTextExtractor fileTextExtractor, WorkLogDao workLogDao) {
         this.chatClient = chatClientBuilder.build();
         this.fileTextExtractor = fileTextExtractor;
         this.objectMapper = new ObjectMapper();
+        this.workLogDao = workLogDao;
     }
 
     // extractAndStructurize 추출 및 구조화라는 뜻 -> 파일 형식 추출
@@ -96,6 +104,7 @@ public class WorkChatAIService {
             .trim();
 
         // B. JSON 객체의 시작 부분인 '{' 또는 '['를 찾아 그 이전의 모든 텍스트를 버립니다.
+        // 간단하게 누가 먼저 나오는지 찾아서 그 외 밖에 있는 것들 잘라낸다는 뜻// 나중에 다시 한번더 이해해보자
         int jsonStartIndex = -1;
         int bracketIndex = cleanJson.indexOf('{');
         int arrayIndex = cleanJson.indexOf('[');
@@ -153,5 +162,94 @@ public class WorkChatAIService {
             System.out.println("------------------------------------");
             return rawAiResponse; 
         }
+    }
+    
+    // 이 밑에 메서드들은 최종적으로 입력해논 문서 안 내용에 정확한 위치에 들어가기 위해 하는 것임
+    // ai가 저장된 첨부파일을 가져와 그리는 작업을 하려고 함!
+    public Map<String, Object> mapDataForTemplate(String templateFileName, Map<String, Object> aiData) {
+    	// 첨푸파일에 넣어준 값과 매칭 시켜 가져온다.
+    	List<Template> mappings = this.workLogDao.selectMappingsByFileName(templateFileName);
+
+    	// 최종적으로 전달할 데이터임
+    	Map<String, Object> finalData = new HashMap<>();
+    	
+    	// 안에 있는 1:1 매칭 되있는 값을 데이터 변환 
+    	for(Template mapping : mappings) {
+    		String jsonKey = mapping.getJsonKey();
+    		String tplKey = mapping.getPlaceholder();
+    		
+    		if(aiData.containsKey(jsonKey)) {
+    			//ai 데이터에서 값을 꺼내 최종 맵에 넣는다는 것!
+    			finalData.put(tplKey, aiData.get(jsonKey));
+    		}
+    	} // <- 여기 까지는 단순한 데이터들은 매칭을 시키는 것이고 밑에 쪽에는 목록형 데이터들이 있으면 어려우니 
+    	//convertListToString 이거를 호출해서 보기좋게 정리한다음 스위치문에서 하는것임
+    	
+    	// 반복적인 것들, 한칸에 여러줄, 반복 되는 표 등을 위해 만든 것
+    	switch (templateFileName) {
+        case "업무일지양식4.docx":
+            // 목록 (List) 데이터를 줄바꿈 문자열로 변환하여 단일 필드에 삽입
+            convertListToString(aiData, finalData, "today_tasks_list", "TPL4_TODAY_TASKS");
+            convertListToString(aiData, finalData, "next_plan_list", "TPL4_NEXT_PLAN");
+            break;
+            
+        case "업무일지양식5.docx":
+            // **반복 테이블 데이터** 처리: List<Map> 자체를 그대로 finalData에 복사하여 문서 엔진에 전달
+            if (aiData.containsKey("tasks") && aiData.get("tasks") instanceof List) {
+                finalData.put("tasks", aiData.get("tasks")); 
+            }
+            break;
+            
+        case "업무일지양식6.docx":
+            // List를 줄바꿈 문자열로 변환하여 단일 필드에 삽입
+            convertListToString(aiData, finalData, "today_issue", "TPL6_TODAY_ISSUE");
+            convertListToString(aiData, finalData, "today_tasks", "TPL6_TODAY_TASKS");
+            convertListToString(aiData, finalData, "details", "TPL6_DETAILS");
+            convertListToString(aiData, finalData, "next_plan", "TPL6_NEXT_PLAN");
+            convertListToString(aiData, finalData, "etc", "TPL6_ETC");
+            break;
+            
+        case "업무일지양식7.docx":
+            // 공사/작업 내역 등의 목록을 줄 바꿈 문자열로 변환하여 단일 필드에 삽입
+            convertListToString(aiData, finalData, "today_work_detail", "TPL7_TODAY_WORK_DETAIL");
+            convertListToString(aiData, finalData, "personnel_count", "TPL7_PERSONNEL_COUNT");
+            convertListToString(aiData, finalData, "equipment_detail", "TPL7_EQUIPMENT_DETAIL");
+            convertListToString(aiData, finalData, "material_detail", "TPL7_MATERIAL_DETAIL");
+            convertListToString(aiData, finalData, "other_notes", "TPL7_OTHER_NOTES");
+            
+            convertListToString(aiData, finalData, "next_plan_detail", "TPL7_NEXT_PLAN_DETAIL");
+            convertListToString(aiData, finalData, "next_personnel_plan", "TPL7_NEXT_PERSONNEL_PLAN");
+            convertListToString(aiData, finalData, "next_equipment_plan", "TPL7_NEXT_EQUIPMENT_PLAN");
+            convertListToString(aiData, finalData, "next_material_plan", "TPL7_NEXT_MATERIAL_PLAN");
+            convertListToString(aiData, finalData, "next_other_notes", "TPL7_NEXT_OTHER_NOTES");
+            break;
+            
+        // 양식 1, 3 등은 DB 매핑만으로 처리가능하다는 가정 하에 별도 case가 없음.
+    }
+    	return finalData;
+    }
+    
+    // 하나의 문자열로 변환하는 작업, 쉽게 리스트 항목을 줄글로 보기좋게 정리해서 옮겨담는 것임
+    private void convertListToString(Map<String, Object> aiData, Map<String, Object> finalData, String aiKey, String tplKey) {
+    	
+    	Object value = aiData.get(aiKey);
+    	// 리스트 형태인지 확인
+    	if(value instanceof List) {
+    		StringBuilder sb = new StringBuilder(); // 반복문 내 여러 요소 줄 바꿈 문자열을 하나로 합칠때 권장된다.
+    		
+    		//리스트를 줄 바꿈 문자열로 변환할거임
+    		List<String> list = (List<String>) value;
+    		
+    		// 예) • 사과
+    		for(int i = 0; i < list.size(); i++) {
+    			sb.append("• ").append(list.get(i));
+    			// 마지막 전까지만 줄바꿈 실행
+    			if(i < list.size() - 1) {
+    				sb.append("\n");
+    			}
+    		}
+    		finalData.put(tplKey, sb.toString());
+    	} 
+    	
     }
 }

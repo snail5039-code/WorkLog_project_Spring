@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import com.example.demo.dto.Template;
 import com.example.demo.dto.WorkLog;
 
 @Mapper
@@ -56,5 +57,12 @@ public interface WorkLogDao {
 
 	@Select("SELECT LAST_INSERT_ID()")
 	public int getLastInsertId();
+	
+	@Select("""
+			select *
+				from template
+				where templateFileName = #{templateFileName}
+			""")
+	public List<Template> selectMappingsByFileName(String templateFileName);
 
 }
