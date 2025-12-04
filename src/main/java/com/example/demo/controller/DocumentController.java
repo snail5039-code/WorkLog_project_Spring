@@ -27,7 +27,7 @@ public class DocumentController {
 		this.documentGeneratorService = documentGeneratorService;
 	}
 
-//	@PostMapping("/usr/work/workLog") 이거 때문에 잠깐 오류남
+	@PostMapping("/usr/work/workLog/generate") 
 	public ResponseEntity<String> generateWorkLog(String title, String mainContent, String sideContent, String author,
 			String position, String reportId, String documentType, List<MultipartFile> files) {
 		
@@ -55,6 +55,18 @@ public class DocumentController {
             TEMPLATE_FILE_NAME = "업무일지양식1.docx";
             break; // 기본 값 세팅한거임
 		}
+		
+		// 2. 템플릿 파일 추출 (files 리스트의 첫 번째 파일이 Docx 템플릿이라고 가정)
+		MultipartFile templateFile = null;
+		if (files != null && !files.isEmpty()) {
+			templateFile = files.get(0);
+		}
+		
+		// 템플릿 파일이 없으면 처리할 수 없으므로 예외를 던집니다.
+		if (templateFile == null || templateFile.isEmpty()) {
+			return ResponseEntity.status(400).body("템플릿 파일(files 리스트의 첫 번째 파일)이 누락되었습니다.");
+		}
+				
 		try {
 			// 1. 문서 템플릿에 채워 넣을 실제 데이터(templateData)를 준비.
             Map<String, Object> templateData = new HashMap<>();
@@ -91,11 +103,13 @@ public class DocumentController {
             String outputFilePath = "C:/temp/output/" + outputFileName;
             
             // 3. DocumentGeneratorService 호출하여 문서 생성
-            String resultPath = documentGeneratorService.generatorDocument(
-                TEMPLATE_FILE_NAME, 
-                templateData, // 👈 준비된 실제 데이터를 전달합니다.
-                outputFilePath
-            );
+            byte[] docxBytes = documentGeneratorService.generateDocxReport(
+            		templateFile,	
+            		templateData // 👈 준비된 실제 데이터를 전달합니다.
+	        );
+            
+            Files.write(Paths.get(outputFilePath), docxBytes); // 👈 (임시) 생성된 DOCX 파일을 C:/temp/output에 저장하는 로직
+            System.out.println("생성된 Docx 파일이 임시 경로에 저장되었습니다: " + outputFilePath);
             
          // 4. 첨부 파일 처리 로직
             if (files != null && !files.isEmpty()) {
@@ -105,26 +119,26 @@ public class DocumentController {
                 Files.createDirectories(Paths.get(attachmentDir)); // 폴더 생성
 
                 int savedCount = 0;
-                for (MultipartFile file : files) {
-                    if (!file.isEmpty()) {
-                        // 4-2. 파일명 중복 방지를 위해 UUID를 원본 파일명 앞에 추가
-                        String uuid = UUID.randomUUID().toString();
-                        String originalFileName = file.getOriginalFilename();
-                        String attachmentFileName = uuid + "_" + originalFileName; // UUID_원본파일명.확장자
-                        
-                        // 4-3. 파일 저장 경로 설정
-                        String savePath = attachmentDir + attachmentFileName; // 쉽게 말해서 전체 주소임 "C:/temp/.../RPT-1234/UUID_보고서.pdf 이런느낌
-                        
-                        // 4-4. 파일 저장
-                        Files.write(Paths.get(savePath), file.getBytes()); // 파일을 저기 주소에 저장하셈
-                        savedCount++;// 그냥 잘 저장됬는지 확인하려고 만듬ㅋ
-                    }
+                // 실제 첨부파일은 저장할 필요가 없으니 인덱스를 1번부터 싲가
+                for(int i = 1; i < files.size(); i++) {
+                	MultipartFile file = files.get(i);
+                	if(!file.isEmpty()) {
+                	// 4-2. 파일명 중복 방지를 위해 UUID를 원본 파일명 앞에 추가, 이름 중복 방지임 ㅋ
+                	String uuid = UUID.randomUUID().toString();
+                	String originalFileName = file.getOriginalFilename();
+                	String attachmentFileName = uuid + "_" + originalFileName; // UUID_원본파일명.확장자	
+                	
+                	// 저장 경로 설정 
+                	String savePath = attachmentDir + attachmentFileName;
+                	
+                	// 파일 저장
+                	Files.write(Paths.get(savePath), file.getBytes()); // 파일을 저기 주소에 저장하셈
+                    savedCount++;// 그냥 잘 저장됬는지 확인하려고 만듬ㅋ
+                	}
                 }
-                System.out.println("첨부 파일 " + files.size() + "개 중 " + savedCount + "개가 " + attachmentDir + "에 저장되었습니다.");
+                System.out.println("첨부 파일 " + (files.size() - 1) + "개 중 " + savedCount + "개가 " + attachmentDir + "에 저장되었습니다.");
             }
-
             return ResponseEntity.ok("업무일지 생성이 완료되었습니다. (사용된 양식: " + documentType + "번)");
-
         } catch (Exception e) {
             // 오류 발생 시 상세 메시지와 함께 500 응답 반환
             e.printStackTrace();
