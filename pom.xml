@@ -130,16 +130,28 @@
 		    <artifactId>docx4j-core</artifactId>
 		    <version>8.3.11</version> 
 	    </dependency>
+	    
+	    <!-- 
+	    [JAXB 오류 해결을 위한 종속성 - MUST INCLUDE]
+	    Java 17에서 docx4j v8.x를 사용하기 위해 필요한 JAXB 종속성입니다. 
+	    이것이 ClassNotFoundException을 해결해 줍니다.
+	    -->
 		<dependency>
 			<groupId>javax.xml.bind</groupId>
 			<artifactId>jaxb-api</artifactId>
 			<version>2.3.1</version>
 		</dependency> 
-		<dependency>
-			<groupId>org.glassfish.jaxb</groupId>
-			<artifactId>jaxb-runtime</artifactId>
-			<version>4.0.5</version>
-		</dependency>
+        <dependency>
+            <groupId>org.glassfish.jaxb</groupId>
+            <artifactId>jaxb-runtime</artifactId>
+            <version>2.3.4</version> 
+        </dependency>
+        <dependency>
+            <groupId>org.docx4j</groupId>
+            <artifactId>docx4j-JAXB-ReferenceImpl</artifactId>
+            <version>8.3.11</version> <!-- docx4j-core와 버전 일치 -->
+        </dependency>
+        
 		<dependency>
 			<groupId>org.javassist</groupId>
 			<artifactId>javassist</artifactId>

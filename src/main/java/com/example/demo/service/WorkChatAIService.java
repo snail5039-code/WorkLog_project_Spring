@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,7 +11,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.dao.WorkLogDao;
 import com.example.demo.dto.Template;
+import com.example.demo.dto.WorkLog;
 import com.example.demo.util.FileTextExtractor;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper; 
 
 @Service
@@ -252,4 +255,42 @@ public class WorkChatAIService {
     	} 
     	
     }
+    
+    // 데이터 처리하는 것
+    public Map<String, Object> generateAndMapDocxData(WorkLog workLog, MultipartFile templateFile) throws Exception {
+		
+		if (templateFile == null || templateFile.isEmpty()) {
+            throw new IllegalArgumentException("Docx 템플릿 파일이 유효하지 않습니다.");
+        }
+
+		// 1. AI를 통한 최종 보고서 내용 JSON 생성
+		String templateFileName = templateFile.getOriginalFilename();
+		// AI에게 전달할 사용자의 입력 내용 조합
+		String newContent = String.format("주요 업무: %s\n\n보조 내용: %s", workLog.getMainContent(), workLog.getSideContent());
+
+		// 최종 보고서 제이슨
+		String finalReportJson = this.generateFinalReport(templateFile, newContent);
+
+		// 2. JSON 데이터를 Map<String, Object>으로 변환
+		Map<String, Object> aiData;
+		try {
+			// AI가 반환한 JSON 문자열을 Java Map으로 파싱, 깔끔하게 정리한다는 느낌
+			aiData = objectMapper.readValue(finalReportJson, new TypeReference<Map<String, Object>>() {});
+		} catch (IOException e) {
+			throw new RuntimeException("AI 응답 JSON 파싱 실패: " + e.getMessage(), e);
+		}
+
+		// 3. ⭐️ 중요: AI가 생성한 요약 내용을 WorkLog DTO에 다시 설정 (DB 저장용) ⭐️
+		// AI가 JSON 내에서 최종 요약본을 담는 필드 키를 "final_summary"라고 가정
+		if (aiData.containsKey("final_summary")) {
+			// workLog DTO에 summaryContent를 설정하여, WorkLogService에서 DB에 저장되도록 준비
+			workLog.setSummaryContent(aiData.get("final_summary").toString());
+		}
+
+		// 4. 템플릿 키(TPLx_KEY)와 JSON 키를 매핑하여 문서 생성 엔진에 전달할 최종 데이터 맵 생성
+		Map<String, Object> docxData = this.mapDataForTemplate(templateFileName, aiData);
+		// 매핑 준비 완료 
+		// 5. Docx 파일 생성에 필요한 최종 데이터 맵 반환
+		return docxData;
+	}
 }
