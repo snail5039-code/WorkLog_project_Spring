@@ -22,6 +22,7 @@ public interface WorkLogDao {
 					, mainContent = #{workLogData.mainContent}
 					, sideContent = #{workLogData.sideContent}
 					, summaryContent = #{workLogData.summaryContent}
+					, documentType = #{workLogData.documentType}
 					, memberId = #{memberId}               
 					, boardId = 1                   
 			""")
@@ -64,5 +65,20 @@ public interface WorkLogDao {
 				where templateFileName = #{templateFileName}
 			""")
 	public List<Template> selectMappingsByFileName(String templateFileName);
+	
+	
+	@Update("""
+			UPDATE workLog
+			     SET docxPath = #{docxPath}
+			     WHERE id = #{id}
+			""")
+	public void updateDocxPath(@Param("id") int workLogId, @Param("docxPath") String savedPath);
 
+	// ⭐ 여기에 이거 추가!
+	@Select("""
+	        SELECT *
+	          FROM template
+	         WHERE templateFileName LIKE CONCAT(#{pattern}, '%')
+	        """)
+	public List<Template> selectMappingsByFileNameLike(String pattern);
 }

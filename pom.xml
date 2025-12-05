@@ -70,6 +70,14 @@
 			<artifactId>spring-boot-starter-tomcat</artifactId>
 			<scope>provided</scope>
 		</dependency>
+		
+		<!-- MockMultipartFile을 사용하기 위해 spring-test 의존성을 추가합니다. -->
+		<!-- MockMultipartFile은 보통 테스트 스코프이나, 서비스 로직에서 필요하므로 스코프를 명시하지 않아 compile이 되도록 합니다. -->
+		<dependency>
+		    <groupId>org.springframework</groupId>
+		    <artifactId>spring-test</artifactId>
+		</dependency>
+		
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>

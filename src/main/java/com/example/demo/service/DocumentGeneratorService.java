@@ -1,20 +1,24 @@
 package com.example.demo.service;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
-import org.springframework.core.io.ClassPathResource;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
-import com.example.demo.controller.WorkLogController;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,6 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class DocumentGeneratorService {
 	
+    @Value("${file.upload-dir}")
+    private String uploadDir;
 	private final WorkChatAIService workChatAIService;
 	
 	public DocumentGeneratorService(WorkChatAIService workChatAIService) {
@@ -67,4 +73,31 @@ public class DocumentGeneratorService {
             throw new Exception("Docx 보고서 생성에 실패했습니다: " + e.getMessage(), e);
         }
 	}
+	public String saveDocxFile(byte[] docxBytes, String fileName) throws IOException {
+		// 오늘 날짜로 폴더 이름 만들고 저장될 경로 만든 거임
+	    String todayFolder = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
+	    Path folderPath = Paths.get(uploadDir, "docx", todayFolder);
+	    // 폴더 없으면 자동 생성하고
+	    Files.createDirectories(folderPath);
+	    // 파일 이름까지 붙인 전체 경로
+	    Path filePath = folderPath.resolve(fileName);
+	    // 실제 파일 저장
+	    Files.write(filePath, docxBytes);
+	    // 저장 경로 반환
+	    return "docx/" + todayFolder + "/" + fileName;
+	}
+	
+    // 생성 + 저장까지 한 번에 처리
+    public String generateAndSaveDocx(MultipartFile templateFile, Map<String, Object> docxData, int workLogId) throws Exception {
+
+        // DOCX 바이너리 생성
+        byte[] docxBytes = generateDocxReport(templateFile, docxData);
+
+        // 파일명 규칙
+        String fileName = "report_" + workLogId + ".docx";
+
+        // 파일 저장 + DB 경로 반환
+        return saveDocxFile(docxBytes, fileName);
+    }	
+
 }
