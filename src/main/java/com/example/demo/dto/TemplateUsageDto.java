@@ -1,7 +1,5 @@
 package com.example.demo.dto;
 
-import java.util.List;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,11 +7,9 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class DynamicWorkLogResponse {
+public class TemplateUsageDto {
+	private String templateName;
+	private String templateId;
+	private int count;
 	
-	//뼈대임!
-	private List<String> headers;
-	
-	//본문 내용
-	private String summaryJsonData;
 }

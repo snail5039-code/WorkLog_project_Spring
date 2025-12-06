@@ -1,5 +1,6 @@
 package com.example.demo.dao;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
@@ -8,7 +9,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import com.example.demo.dto.Template;
+import com.example.demo.dto.TemplateUsageDto;
 import com.example.demo.dto.WorkLog;
 
 @Mapper
@@ -22,8 +23,8 @@ public interface WorkLogDao {
 					, mainContent = #{workLogData.mainContent}
 					, sideContent = #{workLogData.sideContent}
 					, summaryContent = #{workLogData.summaryContent}
-					, documentType = #{workLogData.documentType}
-					, memberId = #{memberId}               
+					, memberId = #{memberId} 
+					, templateId = #{workLogData.templateId}              
 					, boardId = 1                   
 			""")
 	public void writeWorkLog(@Param("workLogData") WorkLog workLogData, @Param("memberId") int memberId);
@@ -61,24 +62,34 @@ public interface WorkLogDao {
 	
 	@Select("""
 			select *
-				from template
-				where templateFileName = #{templateFileName}
+				from workLog
+				where id = #{memberId}
 			""")
-	public List<Template> selectMappingsByFileName(String templateFileName);
-	
-	
-	@Update("""
-			UPDATE workLog
-			     SET docxPath = #{docxPath}
-			     WHERE id = #{id}
-			""")
-	public void updateDocxPath(@Param("id") int workLogId, @Param("docxPath") String savedPath);
+	public List<WorkLog> getMyWorkLogs(int memberId);
 
-	// ⭐ 여기에 이거 추가!
 	@Select("""
-	        SELECT *
-	          FROM template
-	         WHERE templateFileName LIKE CONCAT(#{pattern}, '%')
-	        """)
-	public List<Template> selectMappingsByFileNameLike(String pattern);
+			select *
+				from workLog
+				where id = #{memberId}
+				and date_format(regDate, '%y-%m') = date_format(now(), '%y-%m')
+			""")
+	public int getThisMonthCount(int memberId);
+	
+	@Select("""
+			select max(regDate)
+				from workLog
+				where memberId = #{memberId}
+			""")
+	public LocalDateTime getLastWrittenDate(int memberId);
+	
+	@Select("""
+			select templateId, count(*) as count
+				from workLog
+				where memberId = #{memberId}
+				group by templateId
+				order by count(*) desc
+				limit 3 
+			""")
+	public List<TemplateUsageDto> getTopTemplates(int memberId);
+
 }
