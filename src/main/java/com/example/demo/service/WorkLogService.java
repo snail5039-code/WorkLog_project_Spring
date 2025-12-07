@@ -28,6 +28,10 @@ public class WorkLogService {
 	public List<WorkLog> showList() {
 		return this.workLogDao.showList();
 	}
+	
+	public List<WorkLog> showListByBoardId(Integer boardId) {
+		return this.workLogDao.showListByBoardId(boardId);
+	}
 
 	public WorkLog showDetail(int id) {
 		WorkLog workLog = this.workLogDao.showDetail(id); 
@@ -48,8 +52,8 @@ public class WorkLogService {
 		return this.workLogDao.getLastInsertId();
 	}
 
-	public List<WorkLog> getMyWorkLogs(int memberId) {
-		return this.workLogDao.getMyWorkLogs(memberId);
+	public int getMyWorkLogsCount(int memberId) {
+		return this.workLogDao.getMyWorkLogsCount(memberId);
 	}
 
 	public int getThisMonthCount(int memberId) {
@@ -63,5 +67,29 @@ public class WorkLogService {
 	public List<TemplateUsageDto> getTopTemplates(int memberId) {
 		return this.workLogDao.getTopTemplates(memberId);
 	}
+
+	public List<WorkLog> getMyWorkLogsPaged(int memberId, int page, int size) {
+		int offset = (page - 1) * size; 
+		return workLogDao.getMyWorkLogsPaged(memberId, offset, size);
+	}
+
+	public List<WorkLog> getBoardListPaged(Integer boardId, int page, int size) {
+		int offset = (page - 1) * size;
+		if(boardId == null || boardId == 0) {
+			 return workLogDao.getBoardListPagedAll(offset, size);
+	    } else {
+	        // 특정 게시판만
+	        return workLogDao.getBoardListPagedByBoard(boardId, offset, size);
+	    }
+	}
+
+	public int getBoardListCount(Integer boardId) {
+		if (boardId == null || boardId == 0) {
+	        return workLogDao.getBoardListCountAll();      // 전체 카운트
+	    } else {
+	        return workLogDao.getBoardListCountByBoard(boardId); // 해당 boardId 카운트
+	    }
+	}
+
 	
 }

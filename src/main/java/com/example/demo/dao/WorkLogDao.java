@@ -37,6 +37,16 @@ public interface WorkLogDao {
 				order by id desc
 			""")
 	public List<WorkLog> showList();
+	
+	@Select("""
+			select w.*, m.loginId as writerName
+				from workLog as w
+				inner join member as m
+				on w.memberId = m.id 
+				where boardId = #{boardId}
+				order by id desc
+			""")
+	public List<WorkLog> showListByBoardId(Integer boardId);
 
 	@Select("""
 			select w.*, m.loginId as writerName
@@ -61,16 +71,16 @@ public interface WorkLogDao {
 	public int getLastInsertId();
 	
 	@Select("""
-			select *
+			select count(*)
 				from workLog
-				where id = #{memberId}
+				where memberId = #{memberId}
 			""")
-	public List<WorkLog> getMyWorkLogs(int memberId);
-
+	public int getMyWorkLogsCount(int memberId);
+	// 카운트 안쓰면 터짐!
 	@Select("""
-			select *
+			select count(*)
 				from workLog
-				where id = #{memberId}
+				where memberId = #{memberId}
 				and date_format(regDate, '%y-%m') = date_format(now(), '%y-%m')
 			""")
 	public int getThisMonthCount(int memberId);
@@ -91,5 +101,49 @@ public interface WorkLogDao {
 				limit 3 
 			""")
 	public List<TemplateUsageDto> getTopTemplates(int memberId);
+	
+	@Select("""
+			select *
+				from workLog
+				where memberId = #{memberId}
+				order by id desc
+				limit #{size} offset #{offset}
+			""")
+	public List<WorkLog> getMyWorkLogsPaged(int memberId, int offset, int size);
+	
+	@Select("""
+	        select w.*, m.loginId as writerName
+				 from workLog as w
+			     inner join member as m
+			     on w.memberId = m.id
+			     order by w.id desc
+			     limit #{size} offset #{offset}
+	        """)
+	public List<WorkLog> getBoardListPagedAll(int offset, int size);
+	
+	@Select("""
+	        select w.*, m.loginId as writerName
+	        	 from workLog as w
+				 inner join member as m
+			     on w.memberId = m.id
+			     where w.boardId = #{boardId}
+			     order by w.id desc
+			     limit #{size} offset #{offset}
+	        """)
+	public List<WorkLog> getBoardListPagedByBoard(Integer boardId, int offset, int size);
+
+	@Select("""
+	        select count(*)
+	        	from workLog
+	        """)
+	public int getBoardListCountAll();
+	
+	@Select("""
+	        select count(*)
+	        	from workLog
+	        	where boardId = #{boardId}
+	        """)
+	public int getBoardListCountByBoard(Integer boardId);
+
 
 }

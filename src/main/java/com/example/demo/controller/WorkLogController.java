@@ -15,7 +15,6 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -24,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -35,10 +35,8 @@ import com.example.demo.service.FileAttachService;
 import com.example.demo.service.TemplateValueService;
 import com.example.demo.service.WorkChatAIService;
 import com.example.demo.service.WorkLogService;
-import com.example.demo.util.FileTextExtractor;
 
 import jakarta.servlet.http.HttpSession;
-import jakarta.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j // 로킹 어노테이션
@@ -224,7 +222,7 @@ public class WorkLogController {
 	}
 	
 	@GetMapping("/usr/workLog/myPageSummary")
-	public Map<String, Object> getMyPageSummary(HttpSession session) {
+	public Map<String, Object> getMyPageSummary(HttpSession session, @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "10") int size) {
 		int memberId = -1;
 		
 		memberId = (int) session.getAttribute("logindeMemberId");
@@ -233,9 +231,11 @@ public class WorkLogController {
 			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
 		}
 		
-		List<WorkLog> myWorkLogs = workLogService.getMyWorkLogs(memberId);
 		
-		int totalCount = myWorkLogs.size(); // 내가 쓴 총 게시글 갯수
+		
+		List<WorkLog> myWorkLogs = workLogService.getMyWorkLogsPaged(memberId, page, size);
+		
+		int totalCount = workLogService.getMyWorkLogsCount(memberId); // 내가 쓴 총 게시글 갯수
 		int thisMonthCount = workLogService.getThisMonthCount(memberId); // 이번달 게시글 갯수
 		
 		LocalDateTime lastWritten = workLogService.getLastWrittenDate(memberId);
@@ -257,8 +257,18 @@ public class WorkLogController {
 	
 	
 	@GetMapping("/usr/work/list")
-	public List<WorkLog> showList() {
-		return this.workLogService.showList();
+	public Map<String, Object> showList(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "1") int size, @RequestParam(required = false) Integer boardId) {
+		if(page < 1) page = 1;
+		if(size <= 0 || size > 100) size = 10;
+		
+		List<WorkLog> items = workLogService.getBoardListPaged(boardId, page, size);
+		int totalCount = workLogService.getBoardListCount(boardId);
+		
+		Map<String, Object> result = new HashMap<>();
+	    result.put("items", items);
+	    result.put("totalCount", totalCount);
+
+	    return result;
 	}
 
 	@GetMapping("/usr/work/detail/{id}")
