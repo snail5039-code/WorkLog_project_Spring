@@ -37,3 +37,4 @@ build/
 
 # .gitignore 파일 내용
 ai.yml
+send.yml

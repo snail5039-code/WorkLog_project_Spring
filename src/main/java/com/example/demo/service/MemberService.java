@@ -22,5 +22,20 @@ public class MemberService {
 	public int checkLoginId(String loginId) {
 		return this.memberDao.checkLoginId(loginId);
 	}
+	public Member getMemberById(int memberId) {
+		return this.memberDao.getMemberById(memberId);
+	}
+	public int updateMyInfo(Member member) {
+		return this.memberDao.updateMyInfo(member);
+	}
+	public Member findByNameAndEmail(String name, String email) {
+		return this.memberDao.findByNameAndEmail(name, email);
+	}
+	public void changePassword(int id, String newPassword) {
+		this.memberDao.changePassword(id, newPassword);
+	}
+	public Member findByLoginIdAndEmail(String loginId, String email) {
+		return this.memberDao.findByLoginIdAndEmail(loginId, email);
+	}
 	
 }

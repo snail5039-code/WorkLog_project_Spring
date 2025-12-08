@@ -28,10 +28,12 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.demo.dto.Member;
 import com.example.demo.dto.TemplateUsageDto;
 import com.example.demo.dto.WorkLog;
 import com.example.demo.service.DocxTemplateService;
 import com.example.demo.service.FileAttachService;
+import com.example.demo.service.MemberService;
 import com.example.demo.service.TemplateValueService;
 import com.example.demo.service.WorkChatAIService;
 import com.example.demo.service.WorkLogService;
@@ -41,7 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j // 로킹 어노테이션
 @RestController
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"}, allowCredentials = "true") //쿠키 설정
 @RequestMapping("/api")
 public class WorkLogController {
 
@@ -53,15 +55,17 @@ public class WorkLogController {
 	private WorkLogService workLogService;
 	private final TemplateValueService templateValueService;
 	private final DocxTemplateService docxTemplateService;
+	private final MemberService memberService;
 	
 	// 의존성 주입
 	public WorkLogController(WorkLogService workLogService, FileAttachService fileAttachService,
-			WorkChatAIService workChatAIService, TemplateValueService templateValueService, DocxTemplateService docxTemplateService) {
+			WorkChatAIService workChatAIService, TemplateValueService templateValueService, DocxTemplateService docxTemplateService, MemberService memberService) {
 		this.workLogService = workLogService;
 		this.fileAttachService = fileAttachService;
 		this.workChatAIService = workChatAIService;
 		this.templateValueService = templateValueService;
 		this.docxTemplateService = docxTemplateService;
+		this.memberService = memberService;
 	}
 	
 	// 💡 실제로 쓸 엔드포인트 
@@ -248,13 +252,38 @@ public class WorkLogController {
 		summary.put("lastWrittenDate", lastWritten);
 		summary.put("topTemplates", topTemplates);
 		
+		// 회원정보도 같이 넘기기
+		Member me = this.memberService.getMemberById(memberId);
+		
 		Map<String, Object> result = new HashMap<>();
 		result.put("summary", summary);
 		result.put("myWorkLogs", myWorkLogs);
+		result.put("member", me);
 		
 		return result;
 	}
 	
+	@PostMapping("/usr/workLog/updateMyInfo")
+	public void updateMyInfo(@RequestBody  Member modifyData, HttpSession session) {
+		int memberId = -1;
+		
+		memberId = (int) session.getAttribute("logindeMemberId");
+		
+		if(memberId == -1) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		modifyData.setId(memberId);
+		// 비번 변경안하려면 가져와서 그걸로 넣는거임
+		if(modifyData.getLoginPw() == null || modifyData.getLoginPw().isBlank()) {
+			Member dbmember = this.memberService.getMemberById(memberId);
+			modifyData.setLoginPw(dbmember.getLoginPw());
+		}
+		int affectedRows = this.memberService.updateMyInfo(modifyData);
+		
+		if(affectedRows == 0) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "개인정보 수정에 실패했습니다.");
+		}
+	}
 	
 	@GetMapping("/usr/work/list")
 	public Map<String, Object> showList(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "1") int size, @RequestParam(required = false) Integer boardId) {

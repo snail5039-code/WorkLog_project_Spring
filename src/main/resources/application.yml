@@ -13,6 +13,9 @@ spring:
   config:
     import:
       - classpath:ai.yml
+      - classpath:send.yml
+
+
 #  ai:
 #    ollama:
 #      base-url: http://localhost:11434
