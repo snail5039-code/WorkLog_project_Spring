@@ -454,7 +454,7 @@ public class WorkLogController {
 		    if (aiSummary == null || aiSummary.isBlank()) {
 		        return worklogListText;
 		    }
-
+		    aiSummary = aiSummary.replaceAll("\\n([2-9]\\. )", "\n\n$1");
 		    // 👉 최종적으로 인수인계서 ${handover_content}에 들어갈 내용
 		    return aiSummary;
 		}

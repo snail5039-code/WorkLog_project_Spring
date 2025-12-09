@@ -35,6 +35,33 @@ public class DocxTemplateService {
 			return out.toByteArray();
 		}
 	}
+	// 줄 바꿈 메서드 안그러면 인수인계서 이상하게 나옴
+    private void setParagraphTextWithNewlines(XWPFParagraph p, String text) {
+    	if (text == null) return;
+
+        // 1) 줄바꿈 통일 (\r\n, \r -> \n)
+        String normalized = text
+                .replace("\r\n", "\n")
+                .replace("\r", "\n");
+
+        // 2) 너무 많은 연속 줄바꿈은 줄이기
+        //    \n\n\n 이상 -> \n\n 으로 압축  (즉, "한 줄 띄움" 효과만 남김)
+        normalized = normalized.replaceAll("\n{3,}", "\n\n");
+
+        // 3) 줄 단위로 나눠서 워드에 넣기
+        String[] lines = normalized.split("\n", -1);
+
+        for (int i = 0; i < lines.length; i++) {
+            XWPFRun r = p.createRun();
+            r.setText(lines[i]);  // 내용이 빈 문자열("")이면 "빈 줄" 역할
+
+            // 마지막 줄이 아니면 줄바꿈 추가
+            if (i < lines.length - 1) {
+                r.addBreak();
+            }
+        }
+    }
+    
 	// 예를 들어 문자열이들이 줄바꿈으로 인해서 ${업무"
     //"일자}" 이런식으로 쪼개져 있으면 오류가 나서 붙여주는 작업
 	// word 문단 안 텍스트 치환
@@ -59,8 +86,7 @@ public class DocxTemplateService {
 					p.removeRun(i); // 기존에 있는 텍스트 조각들은 없애주는 것임!
 				}
 				// 치환한 텍스트 전체 넣기
-				XWPFRun newRun = p.createRun();
-				newRun.setText(replaced);
+				 setParagraphTextWithNewlines(p, replaced);
 			}
 		}
 	}
@@ -95,8 +121,7 @@ public class DocxTemplateService {
 	                            p.removeRun(i); // 위에랑 같은 말임
 	                        }
 	                        // 4. 새 run 하나로 전체 텍스트 설정
-	                        XWPFRun newRun = p.createRun();
-	                        newRun.setText(replaced);
+	                        setParagraphTextWithNewlines(p, replaced);
 	                    }
 	                }
 	            }
