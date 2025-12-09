@@ -78,4 +78,11 @@ public interface MemberDao {
 			""")
 	Member findByLoginIdAndEmail(String loginId, String email);
 	
+	@Select("""
+			select *
+				from member
+				where email = #{email}
+			""")
+	Member findEmail(String email);
+	
 }

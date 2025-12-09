@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -15,6 +16,7 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -33,6 +35,7 @@ import com.example.demo.dto.TemplateUsageDto;
 import com.example.demo.dto.WorkLog;
 import com.example.demo.service.DocxTemplateService;
 import com.example.demo.service.FileAttachService;
+import com.example.demo.service.HandoverTemplateService;
 import com.example.demo.service.MemberService;
 import com.example.demo.service.TemplateValueService;
 import com.example.demo.service.WorkChatAIService;
@@ -43,123 +46,128 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j // 로킹 어노테이션
 @RestController
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"}, allowCredentials = "true") //쿠키 설정
+@CrossOrigin(origins = { "http://localhost:5173", "http://localhost:5174" }, allowCredentials = "true") // 쿠키 설정
 @RequestMapping("/api")
 public class WorkLogController {
 
-	@Value("${file.upload-dir}") 
+	@Value("${file.upload-dir}")
 	private String uploadDir;
-	  
+
 	private final WorkChatAIService workChatAIService;
 	private FileAttachService fileAttachService;
 	private WorkLogService workLogService;
 	private final TemplateValueService templateValueService;
 	private final DocxTemplateService docxTemplateService;
 	private final MemberService memberService;
-	
+	private final HandoverTemplateService handoverTemplateService;
+
 	// 의존성 주입
 	public WorkLogController(WorkLogService workLogService, FileAttachService fileAttachService,
-			WorkChatAIService workChatAIService, TemplateValueService templateValueService, DocxTemplateService docxTemplateService, MemberService memberService) {
+			WorkChatAIService workChatAIService, TemplateValueService templateValueService,
+			DocxTemplateService docxTemplateService, MemberService memberService,
+			HandoverTemplateService handoverTemplateService) {
 		this.workLogService = workLogService;
 		this.fileAttachService = fileAttachService;
 		this.workChatAIService = workChatAIService;
 		this.templateValueService = templateValueService;
 		this.docxTemplateService = docxTemplateService;
 		this.memberService = memberService;
+		this.handoverTemplateService = handoverTemplateService;
 	}
-	
-	// 💡 실제로 쓸 엔드포인트 
-    @GetMapping("/worklogs/{id}/download/{templateId}")
-    public ResponseEntity<byte[]> downloadTemplate(@PathVariable int id, @PathVariable String templateId) throws IOException {
-        System.out.println(">>> /api/worklogs/" + id + "/download/template1 호출됨");
-        // 디비에서 해당 업무일지 가져오는 것
-        WorkLog log = workLogService.showDetail(id);
-        if(log == null) {
-        	throw new ResponseStatusException(HttpStatus.NOT_FOUND, "업무일지를 찾을 수 없습니다.");
-        }
-        String summaryJson = log.getSummaryContent();
-        if(summaryJson == null || summaryJson.isEmpty()) {
-        	throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이 업무일지에는 템플릿 데이터를 위한 요약이 없습니다.");
-        }
-        // 나중에 양식 더 추가 시키기
-        String docxFileName;
-        switch (templateId.toUpperCase()) {
-        case "TPL1": docxFileName = "업무일지양식1.docx"; break;
-        case "TPL3": docxFileName = "업무일지양식3.docx"; break;
-        case "TPL4": docxFileName = "업무일지양식4.docx"; break;
-        case "TPL5": docxFileName = "업무일지양식5.docx"; break;
-        case "TPL6": docxFileName = "업무일지양식6.docx"; break;
-        case "TPL7": docxFileName = "업무일지양식7.docx"; break;
+
+	// 💡 실제로 쓸 엔드포인트
+	@GetMapping("/worklogs/{id}/download/{templateId}")
+	public ResponseEntity<byte[]> downloadTemplate(@PathVariable int id, @PathVariable String templateId)
+			throws IOException {
+		System.out.println(">>> /api/worklogs/" + id + "/download/template1 호출됨");
+		// 디비에서 해당 업무일지 가져오는 것
+		WorkLog log = workLogService.showDetail(id);
+		if (log == null) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "업무일지를 찾을 수 없습니다.");
+		}
+		String summaryJson = log.getSummaryContent();
+		if (summaryJson == null || summaryJson.isEmpty()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이 업무일지에는 템플릿 데이터를 위한 요약이 없습니다.");
+		}
+		// 나중에 양식 더 추가 시키기
+		String docxFileName;
+		switch (templateId.toUpperCase()) {
+		case "TPL1":
+			docxFileName = "업무일지양식1.docx";
+			break;
+		case "TPL3":
+			docxFileName = "업무일지양식3.docx";
+			break;
+		case "TPL4":
+			docxFileName = "업무일지양식4.docx";
+			break;
+		case "TPL5":
+			docxFileName = "업무일지양식5.docx";
+			break;
+		case "TPL6":
+			docxFileName = "업무일지양식6.docx";
+			break;
+		case "TPL7":
+			docxFileName = "업무일지양식7.docx";
+			break;
 		default:
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "지원하지 않는 템플릿입니다." + templateId);
 		}
-        
-        // 자동 치환 메서드 호출
-        Map<String, String> values = templateValueService.buildValuesFromJson(summaryJson);
-        // 3) 템플릿 적용
-        byte[] fileBytes =
-                docxTemplateService.fileTemplate(docxFileName, values);
 
-        // 4) 응답 헤더 세팅
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(
-                MediaType.parseMediaType(
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-        );
-        headers.setContentDisposition(
-                ContentDisposition.attachment()
-                		.filename("worklog_" + id + "_" + templateId.toUpperCase() + ".docx", StandardCharsets.UTF_8)
-                		.build()
-        );
+		// 자동 치환 메서드 호출
+		Map<String, String> values = templateValueService.buildValuesFromJson(summaryJson);
+		// 3) 템플릿 적용
+		byte[] fileBytes = docxTemplateService.fileTemplate(docxFileName, values);
 
-        return new ResponseEntity<>(fileBytes, headers, HttpStatus.OK);
-    }
+		// 4) 응답 헤더 세팅
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(
+				MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+		headers.setContentDisposition(ContentDisposition.attachment()
+				.filename("worklog_" + id + "_" + templateId.toUpperCase() + ".docx", StandardCharsets.UTF_8).build());
 
-	
+		return new ResponseEntity<>(fileBytes, headers, HttpStatus.OK);
+	}
 
 	@PostMapping("/usr/work/workLog") // MultipartFile 이거는 스프링부트 내장이라서 바로 사용 가능함, 리액트에서 multiple를 받아온거!
-	public String writeWorkLog(String title, String mainContent, String sideContent, String templateId, List<MultipartFile> files,
-			HttpSession session) {
+	public String writeWorkLog(String title, String mainContent, String sideContent, String templateId,
+			List<MultipartFile> files, HttpSession session) {
 		// 여기는 ai한테 입력된 값 넘기는 곳!
 		String finalAiReport = null;
-		// ai 처리를 위해 템플릿 파일, 내용을 준비 
-		MultipartFile templateFile = null; //combinedNewContent 결합된 새로운 내용
+		// ai 처리를 위해 템플릿 파일, 내용을 준비
+		MultipartFile templateFile = null; // combinedNewContent 결합된 새로운 내용
 		String combinedNewContent = "제목: " + title + "\n\n" + mainContent + "\n\n보조 내용: " + sideContent;
-			
-		
-			String effectiveTemplateId;
-			try {
-				
-				effectiveTemplateId = (templateId == null || templateId.isBlank())
-						? "TPL1"
-						: templateId;
-				finalAiReport = this.workChatAIService.generateFinalReport(effectiveTemplateId, combinedNewContent);
-			} catch (Exception e) {
-				e.printStackTrace();
-				System.err.println("AI 보고서 생성 중 오류 발생, 원본 내용 저장:" + e.getMessage());
-		        // DB에서 summaryContent NOT NULL 이라면 최소한 빈 JSON이라도 넣어주자
-		        finalAiReport = "{}";
-		        effectiveTemplateId = "TPL1";
-			}
-		
+
+		String effectiveTemplateId;
+		try {
+
+			effectiveTemplateId = (templateId == null || templateId.isBlank()) ? "TPL1" : templateId;
+			finalAiReport = this.workChatAIService.generateFinalReport(effectiveTemplateId, combinedNewContent);
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.err.println("AI 보고서 생성 중 오류 발생, 원본 내용 저장:" + e.getMessage());
+			// DB에서 summaryContent NOT NULL 이라면 최소한 빈 JSON이라도 넣어주자
+			finalAiReport = "{}";
+			effectiveTemplateId = "TPL1";
+		}
+
 		int memberIdObj = (int) session.getAttribute("logindeMemberId");
-		
+
 		// MultipartFile 이거는 따로 테이블 만들어서 보관해야됌!
 		WorkLog workLogData = new WorkLog();
 		workLogData.setTitle(title);
 		workLogData.setMainContent(mainContent);
 		workLogData.setSideContent(sideContent);
-		
+
 		workLogData.setTemplateId(effectiveTemplateId);
-		
-		// ai가 생성한 최종 보고서 담기 
-		if(finalAiReport != null && !finalAiReport.trim().isEmpty()) {
+
+		// ai가 생성한 최종 보고서 담기
+		if (finalAiReport != null && !finalAiReport.trim().isEmpty()) {
 			workLogData.setSummaryContent(finalAiReport);
 		} else {
 			workLogData.setSummaryContent("{}");
 		}
-		
+
 		this.workLogService.writeWorkLog(workLogData, memberIdObj);
 
 		int workLogId = this.workLogService.getLastInsertId();
@@ -177,127 +185,132 @@ public class WorkLogController {
 		}
 		return "데이터 입력 완료";
 	}
-	
+
 	// 파일 다운로드 하게하기
 	@GetMapping("/usr/work/download/{storedFilename}")
 	public ResponseEntity<Resource> downloadFile(@PathVariable String storedFilename) {
 		// db 저장된 파일명을 이용 원본 파일명 조회 하는 것!
 		String originalFilename = fileAttachService.getOriginalFilename(storedFilename);
-		
-		if(originalFilename == null) {
+
+		if (originalFilename == null) {
 			System.out.println("파일을 찾을 수 없음!");
 			log.error("파일을 찾을 수가 없음..");
 		}
 		// 파일 경로 찾는 것임!
 		Path filePath = Paths.get(uploadDir).resolve(storedFilename).normalize();
-		log.info("시도된 파일 다운로드 경로: {}", filePath.toAbsolutePath()); // toAbsolutePath()를 사용해 절대 경로를 확인	
+		log.info("시도된 파일 다운로드 경로: {}", filePath.toAbsolutePath()); // toAbsolutePath()를 사용해 절대 경로를 확인
 		Resource resource;
-		
+
 		try {
 			resource = new UrlResource(filePath.toUri());
 		} catch (Exception e) {
 			log.error("파일 경로가 올바르지 않음: {}", storedFilename, e);
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "파일 경로가 올바르지 않습니다.");
 		}
-		// exists 실제로 있는지 파일이, isReadable 권한이 있는지 
-		if(!resource.exists() || !resource.isReadable()) {
+		// exists 실제로 있는지 파일이, isReadable 권한이 있는지
+		if (!resource.exists() || !resource.isReadable()) {
 			log.error("파일을 찾을 수가 없음..");
 			System.out.println("파일을 찾을 수 없음!");
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다.");
 		}
-		
+
 		// 다운로드 해야할 파일, 파일 이름 알려주는 역할임!
 		String contentDisposition = "";
-		
+
 		// 브라우저한테 인코딩해서 파일 보낼거임!
 		try {
-			// ISO-8859-1 이걸로 변환해서 안보내면 깨짐 
-			 String encodedFilename = new String(originalFilename.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1);	
-			 // attachment;filename=\ 요거는 텍스트 명령어라서 규칙임, 첨부파일이니깐 다운로드해라, 이름은 저거임 이라는 것!
-			 contentDisposition =  "attachment;filename=\"" + encodedFilename + "\"";
+			// ISO-8859-1 이걸로 변환해서 안보내면 깨짐
+			String encodedFilename = new String(originalFilename.getBytes(StandardCharsets.UTF_8),
+					StandardCharsets.ISO_8859_1);
+			// attachment;filename=\ 요거는 텍스트 명령어라서 규칙임, 첨부파일이니깐 다운로드해라, 이름은 저거임 이라는 것!
+			contentDisposition = "attachment;filename=\"" + encodedFilename + "\"";
 		} catch (Exception e) {
 			log.warn("응 인코딩 실패!");
-			contentDisposition =  "attachment;filename=\"" + originalFilename + "\"";
+			contentDisposition = "attachment;filename=\"" + originalFilename + "\"";
 		}
 		// contentType(MediaType.APPLICATION_OCTET_STREAM) 이거는 바이너리 파일임. 약속된거라서 그냥 쓰면 됌
-		// HttpHeaders.CONTENT_DISPOSITION, contentDisposition 이것도 약속임 파일 이름 알려주는 거 위에 다운로드 하라는 것도 같이 그래서 실제 데이터를 body(resource) 요기에 담는거!
-		return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition).body(resource);
-		
+		// HttpHeaders.CONTENT_DISPOSITION, contentDisposition 이것도 약속임 파일 이름 알려주는 거 위에
+		// 다운로드 하라는 것도 같이 그래서 실제 데이터를 body(resource) 요기에 담는거!
+		return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM)
+				.header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition).body(resource);
+
 	}
-	
+
 	@GetMapping("/usr/workLog/myPageSummary")
-	public Map<String, Object> getMyPageSummary(HttpSession session, @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "10") int size) {
+	public Map<String, Object> getMyPageSummary(HttpSession session, @RequestParam(defaultValue = "1") int page,
+			@RequestParam(defaultValue = "10") int size) {
 		int memberId = -1;
-		
+
 		memberId = (int) session.getAttribute("logindeMemberId");
-		
-		if(memberId == -1) {
+
+		if (memberId == -1) {
 			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
 		}
-		
-		
-		
+
 		List<WorkLog> myWorkLogs = workLogService.getMyWorkLogsPaged(memberId, page, size);
-		
+
 		int totalCount = workLogService.getMyWorkLogsCount(memberId); // 내가 쓴 총 게시글 갯수
 		int thisMonthCount = workLogService.getThisMonthCount(memberId); // 이번달 게시글 갯수
-		
+
 		LocalDateTime lastWritten = workLogService.getLastWrittenDate(memberId);
-		
+
 		List<TemplateUsageDto> topTemplates = workLogService.getTopTemplates(memberId);
-		
+
 		Map<String, Object> summary = new HashMap<>();
 		summary.put("totalCount", totalCount);
 		summary.put("thisMonthCount", thisMonthCount);
 		summary.put("lastWrittenDate", lastWritten);
 		summary.put("topTemplates", topTemplates);
-		
+
 		// 회원정보도 같이 넘기기
 		Member me = this.memberService.getMemberById(memberId);
-		
+
 		Map<String, Object> result = new HashMap<>();
 		result.put("summary", summary);
 		result.put("myWorkLogs", myWorkLogs);
 		result.put("member", me);
-		
+
 		return result;
 	}
-	
+
 	@PostMapping("/usr/workLog/updateMyInfo")
-	public void updateMyInfo(@RequestBody  Member modifyData, HttpSession session) {
+	public void updateMyInfo(@RequestBody Member modifyData, HttpSession session) {
 		int memberId = -1;
-		
+
 		memberId = (int) session.getAttribute("logindeMemberId");
-		
-		if(memberId == -1) {
+
+		if (memberId == -1) {
 			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
 		}
 		modifyData.setId(memberId);
 		// 비번 변경안하려면 가져와서 그걸로 넣는거임
-		if(modifyData.getLoginPw() == null || modifyData.getLoginPw().isBlank()) {
+		if (modifyData.getLoginPw() == null || modifyData.getLoginPw().isBlank()) {
 			Member dbmember = this.memberService.getMemberById(memberId);
 			modifyData.setLoginPw(dbmember.getLoginPw());
 		}
 		int affectedRows = this.memberService.updateMyInfo(modifyData);
-		
-		if(affectedRows == 0) {
+
+		if (affectedRows == 0) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "개인정보 수정에 실패했습니다.");
 		}
 	}
-	
+
 	@GetMapping("/usr/work/list")
-	public Map<String, Object> showList(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "1") int size, @RequestParam(required = false) Integer boardId) {
-		if(page < 1) page = 1;
-		if(size <= 0 || size > 100) size = 10;
-		
+	public Map<String, Object> showList(@RequestParam(defaultValue = "1") int page,
+			@RequestParam(defaultValue = "1") int size, @RequestParam(required = false) Integer boardId) {
+		if (page < 1)
+			page = 1;
+		if (size <= 0 || size > 100)
+			size = 10;
+
 		List<WorkLog> items = workLogService.getBoardListPaged(boardId, page, size);
 		int totalCount = workLogService.getBoardListCount(boardId);
-		
-		Map<String, Object> result = new HashMap<>();
-	    result.put("items", items);
-	    result.put("totalCount", totalCount);
 
-	    return result;
+		Map<String, Object> result = new HashMap<>();
+		result.put("items", items);
+		result.put("totalCount", totalCount);
+
+		return result;
 	}
 
 	@GetMapping("/usr/work/detail/{id}")
@@ -309,4 +322,141 @@ public class WorkLogController {
 	public int modify(@PathVariable("id") int id, @RequestBody WorkLog modifyData) {
 		return this.workLogService.doModify(id, modifyData);
 	}
+
+	// 테스트 할거
+	@GetMapping("/handover/download")
+	public ResponseEntity<byte[]> downloadHandover(HttpSession session, String title, String toName, String toJob,
+			String fromJob, String fromDateStr, String toDateStr) throws IOException {
+
+		Integer memberId = (Integer) session.getAttribute("logindeMemberId");
+
+		if (memberId == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+
+		Member me = memberService.getMemberById(memberId);
+		if (me == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원 정보를 찾을 수 없습니다.");
+		}
+
+		if (title == null || title.isBlank()) {
+			title = "업무 인수인계";
+		}
+		if (toName == null)
+			toName = "";
+		if (toJob == null)
+			toJob = "";
+		if (fromJob == null)
+			fromJob = "";
+
+		LocalDate fromDate = null;
+		LocalDate toDate = null;
+		if (fromDateStr != null && !fromDateStr.isBlank()) {
+			fromDate = LocalDate.parse(fromDateStr);
+		}
+		if (toDateStr != null && !toDateStr.isBlank()) {
+			toDate = LocalDate.parse(toDateStr);
+		}
+
+		String content = buildHandoverContent(memberId, fromDate, toDate);
+		String date = LocalDate.now().toString(); // "2025-12-09" 이런 형식
+
+		Map<String, String> values = handoverTemplateService.buildBaseValues(me, toName, toJob, title, content, date,
+				fromJob);
+
+		byte[] fileBytes = docxTemplateService.fileTemplate("업무 인수인계서.docx", values);
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(
+				MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+
+		String filename = "인수인계서.docx";
+		headers.setContentDispositionFormData("attachment",
+				new String(filename.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1));
+
+		return new ResponseEntity<>(fileBytes, headers, HttpStatus.OK);
+
+	}
+
+	private String buildHandoverContent(int memberId, LocalDate fromDate, LocalDate toDate) {
+		int page = 1;
+		int size = 200;
+
+		List<WorkLog> logs = workLogService.getMyWorkLogsPaged(memberId, page, size);
+		if (logs == null || logs.isEmpty()) {
+			return "등록된 업무일지가 없습니다.";
+		}
+
+		List<WorkLog> filtered = logs.stream().filter(log -> {
+			String regDateStr = log.getRegDate();
+			if (regDateStr == null || regDateStr.isBlank()) {
+				return false;
+			}
+			try {
+				if (regDateStr.length() >= 10) {
+					regDateStr = regDateStr.substring(0, 10);
+				}
+				LocalDate d = LocalDate.parse(regDateStr);
+
+				if (fromDate != null && d.isBefore(fromDate))
+					return false;
+				if (toDate != null && d.isAfter(toDate))
+					return false;
+
+				return true;
+			} catch (Exception e) {
+				return false;
+			}
+		}).toList();
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("아래는 선택한 기간 동안 작성한 업무일지 목록입니다.\n")
+	      .append("각 항목은 제목, 작성일, 주요 내용 순으로 정리되어 있습니다.\n\n");
+
+		 int index = 1;
+		    int maxLogsForAi = Math.min(filtered.size(), 20); // AI에 너무 많이 안 넘기게 최대 20개
+
+		    for (int i = 0; i < maxLogsForAi; i++) {
+		        WorkLog log = filtered.get(i);
+
+		        String regDateStr = log.getRegDate();
+		        if (regDateStr != null && regDateStr.length() >= 10) {
+		            regDateStr = regDateStr.substring(0, 10); // yyyy-MM-dd
+		        }
+
+		        String title = (log.getTitle() != null && !log.getTitle().isBlank())
+		                ? log.getTitle()
+		                : "(제목 없음)";
+
+		        String main = log.getMainContent();
+		        String mainSnippet = "";
+		        if (main != null && !main.isBlank()) {
+		            // 너무 길면 앞부분만 잘라서 재료로만 사용 (진짜 요약은 AI가 함)
+		            mainSnippet = main.length() > 400 ? main.substring(0, 400) + "..." : main;
+		        }
+
+		        sb.append(index++).append(". 제목: ").append(title).append("\n");
+		        if (regDateStr != null) {
+		            sb.append("   작성일: ").append(regDateStr).append("\n");
+		        }
+		        if (!mainSnippet.isBlank()) {
+		            sb.append("   내용: ").append(mainSnippet).append("\n");
+		        }
+		        sb.append("\n");
+		    }
+
+		    String worklogListText = sb.toString();
+
+		    // ✅ 3) 여기서 AI에게 "인수인계용 문단" 만들어달라고 요청
+		    String aiSummary = workChatAIService.generateHandoverSummary(worklogListText);
+
+		    // 혹시라도 AI가 빈 값 주면, 최소한 재료 텍스트라도 넣어주기
+		    if (aiSummary == null || aiSummary.isBlank()) {
+		        return worklogListText;
+		    }
+
+		    // 👉 최종적으로 인수인계서 ${handover_content}에 들어갈 내용
+		    return aiSummary;
+		}
+
 }

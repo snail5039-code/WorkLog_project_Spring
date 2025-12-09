@@ -37,5 +37,8 @@ public class MemberService {
 	public Member findByLoginIdAndEmail(String loginId, String email) {
 		return this.memberDao.findByLoginIdAndEmail(loginId, email);
 	}
+	public Member findEmail(String email) {
+		return this.memberDao.findEmail(email);
+	}
 	
 }

@@ -38,3 +38,6 @@ build/
 # .gitignore 파일 내용
 ai.yml
 send.yml
+
+# Firebase Service Key
+/src/main/resources/firebase/serviceAccountKey.json
