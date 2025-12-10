@@ -1,5 +1,6 @@
 package com.example.demo.dao;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -144,6 +145,15 @@ public interface WorkLogDao {
 	        	where boardId = #{boardId}
 	        """)
 	public int getBoardListCountByBoard(Integer boardId);
+	
+	@Select("""
+			select * 
+				from workLog
+				where memberId = #{memberId}
+					and date(regDate) between #{s} and #{e}
+				order by regDate asc
+			""")
+	public List<WorkLog> getLogsByDateRange(int memberId, LocalDate s, LocalDate e);
 
 
 }

@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -89,6 +90,10 @@ public class WorkLogService {
 	    } else {
 	        return workLogDao.getBoardListCountByBoard(boardId); // 해당 boardId 카운트
 	    }
+	}
+
+	public List<WorkLog> getLogsByDateRange(int memberId, LocalDate s, LocalDate e) {
+		return this.workLogDao.getLogsByDateRange(memberId, s, e);
 	}
 
 	

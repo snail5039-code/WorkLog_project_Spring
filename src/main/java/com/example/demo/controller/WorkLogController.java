@@ -39,6 +39,7 @@ import com.example.demo.service.HandoverLogService;
 import com.example.demo.service.HandoverTemplateService;
 import com.example.demo.service.MemberService;
 import com.example.demo.service.TemplateValueService;
+import com.example.demo.service.WeeklyService;
 import com.example.demo.service.WorkChatAIService;
 import com.example.demo.service.WorkLogService;
 
@@ -62,12 +63,14 @@ public class WorkLogController {
 	private final MemberService memberService;
 	private final HandoverTemplateService handoverTemplateService;
 	private final HandoverLogService handoverLogService;
+	private final WeeklyService weeklyService;
 
 	// 의존성 주입
 	public WorkLogController(WorkLogService workLogService, FileAttachService fileAttachService,
 			WorkChatAIService workChatAIService, TemplateValueService templateValueService,
 			DocxTemplateService docxTemplateService, MemberService memberService,
-			HandoverTemplateService handoverTemplateService, HandoverLogService handoverLogService) {
+			HandoverTemplateService handoverTemplateService, HandoverLogService handoverLogService,
+			WeeklyService weeklyService) {
 		this.workLogService = workLogService;
 		this.fileAttachService = fileAttachService;
 		this.workChatAIService = workChatAIService;
@@ -76,6 +79,7 @@ public class WorkLogController {
 		this.memberService = memberService;
 		this.handoverTemplateService = handoverTemplateService;
 		this.handoverLogService = handoverLogService;
+		this.weeklyService = weeklyService;
 	}
 
 	// 💡 실제로 쓸 엔드포인트
@@ -315,21 +319,24 @@ public class WorkLogController {
 
 		return result;
 	}
-	
+
 	@GetMapping("/handover/list") // 페이징 처리도 같이함
-	public Map<String, Object> getMyHandoverList(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "10") int size, HttpSession session) {
+	public Map<String, Object> getMyHandoverList(@RequestParam(defaultValue = "1") int page,
+			@RequestParam(defaultValue = "10") int size, HttpSession session) {
 		Integer memberId = (Integer) session.getAttribute("logindeMemberId");
-		if(memberId == null) {
+		if (memberId == null) {
 			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
 		}
-		if(page < 1) page = 1;
-		if(size <= 0 || size > 100) size = 10;
-		
+		if (page < 1)
+			page = 1;
+		if (size <= 0 || size > 100)
+			size = 10;
+
 		int offset = (page - 1) * size;
-		
+
 		List<HandoverLog> items = this.handoverLogService.getMyHandoverLog(memberId, offset, size);
 		int totalCount = this.handoverLogService.getMyHandoverLogCount(memberId);
-		
+
 		Map<String, Object> result = new HashMap<>();
 		result.put("items", items);
 		result.put("totalCount", totalCount);
@@ -364,9 +371,12 @@ public class WorkLogController {
 		if (title == null || title.isBlank()) {
 			title = "업무 인수인계";
 		}
-		if (toName == null) toName = "";
-		if (toJob == null) toJob = "";
-		if (fromJob == null) fromJob = "";
+		if (toName == null)
+			toName = "";
+		if (toJob == null)
+			toJob = "";
+		if (fromJob == null)
+			fromJob = "";
 
 		LocalDate fromDate = null;
 		LocalDate toDate = null;
@@ -380,10 +390,12 @@ public class WorkLogController {
 		String content = buildHandoverContent(memberId, fromDate, toDate);
 		String date = LocalDate.now().toString(); // "2025-12-09" 이런 형식
 
-		Map<String, String> values = handoverTemplateService.buildBaseValues(me, toName, toJob, title, content, date, fromJob);
-		
-		this.handoverLogService.saveHandoverLog(memberId, me.getName(), title, toName, toJob, fromJob, fromDate, toDate,  content);
-		
+		Map<String, String> values = handoverTemplateService.buildBaseValues(me, toName, toJob, title, content, date,
+				fromJob);
+
+		this.handoverLogService.saveHandoverLog(memberId, me.getName(), title, toName, toJob, fromJob, fromDate, toDate,
+				content);
+
 		byte[] fileBytes = docxTemplateService.fileTemplate("업무 인수인계서.docx", values);
 
 		HttpHeaders headers = new HttpHeaders();
@@ -397,48 +409,46 @@ public class WorkLogController {
 		return new ResponseEntity<>(fileBytes, headers, HttpStatus.OK);
 
 	}
-	
+
 	@GetMapping("/handover/download/{id}") // 여기는 목록에서 다운
 	public ResponseEntity<byte[]> downloadHandoverById(@PathVariable int id, HttpSession session) throws IOException {
 		Integer memberId = (Integer) session.getAttribute("logindeMemberId");
 
 		if (memberId == null) {
 			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
-		} 
-		
+		}
+
 		HandoverLog log = this.handoverLogService.findById(id);
-		if(log == null) {
+		if (log == null) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "인수인계 내역을 찾을 수 없습니다.");
 		}
-		
-		if(log.getMemberId() != memberId) {
+
+		if (log.getMemberId() != memberId) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인의 인수인계 내역만 다운로드할 수 있습니다.");
 		}
-		
+
 		Member me = memberService.getMemberById(memberId);
-	    if (me == null) {
-	        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원 정보를 찾을 수 없습니다.");
-	    }
-	    
-	    String content = log.getContent();
-	    String dateStr = LocalDate.now().toString();
-	    
-	    Map<String, String> values = this.handoverTemplateService.buildBaseValues(me, log.getToName(), log.getToJob(), log.getTitle(), content, dateStr, log.getFromJob());
-	    
-	    byte[] fileBytes = this.docxTemplateService.fileTemplate("업무 인수인계서.docx", values);
-	    
-	    HttpHeaders headers = new HttpHeaders();
-	    headers.setContentType(MediaType.parseMediaType(
-	            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-	    ));
+		if (me == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원 정보를 찾을 수 없습니다.");
+		}
 
-	    String filename = ("인수인계서_" + log.getId() + ".docx");
-	    headers.setContentDispositionFormData(
-	            "attachment",
-	            new String(filename.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1)
-	    );
+		String content = log.getContent();
+		String dateStr = LocalDate.now().toString();
 
-	    return new ResponseEntity<>(fileBytes, headers, HttpStatus.OK);
+		Map<String, String> values = this.handoverTemplateService.buildBaseValues(me, log.getToName(), log.getToJob(),
+				log.getTitle(), content, dateStr, log.getFromJob());
+
+		byte[] fileBytes = this.docxTemplateService.fileTemplate("업무 인수인계서.docx", values);
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(
+				MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+
+		String filename = ("인수인계서_" + log.getId() + ".docx");
+		headers.setContentDispositionFormData("attachment",
+				new String(filename.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1));
+
+		return new ResponseEntity<>(fileBytes, headers, HttpStatus.OK);
 	}
 
 	private String buildHandoverContent(int memberId, LocalDate fromDate, LocalDate toDate) {
@@ -473,55 +483,123 @@ public class WorkLogController {
 		}).toList();
 
 		StringBuilder sb = new StringBuilder();
-		sb.append("아래는 선택한 기간 동안 작성한 업무일지 목록입니다.\n")
-	      .append("각 항목은 제목, 작성일, 주요 내용 순으로 정리되어 있습니다.\n\n");
+		sb.append("아래는 선택한 기간 동안 작성한 업무일지 목록입니다.\n").append("각 항목은 제목, 작성일, 주요 내용 순으로 정리되어 있습니다.\n\n");
 
-		 int index = 1;
-		    int maxLogsForAi = Math.min(filtered.size(), 20); // AI에 너무 많이 안 넘기게 최대 20개
+		int index = 1;
+		int maxLogsForAi = Math.min(filtered.size(), 20); // AI에 너무 많이 안 넘기게 최대 20개
 
-		    for (int i = 0; i < maxLogsForAi; i++) {
-		        WorkLog log = filtered.get(i);
+		for (int i = 0; i < maxLogsForAi; i++) {
+			WorkLog log = filtered.get(i);
 
-		        String regDateStr = log.getRegDate();
-		        if (regDateStr != null && regDateStr.length() >= 10) {
-		            regDateStr = regDateStr.substring(0, 10); // yyyy-MM-dd
-		        }
+			String regDateStr = log.getRegDate();
+			if (regDateStr != null && regDateStr.length() >= 10) {
+				regDateStr = regDateStr.substring(0, 10); // yyyy-MM-dd
+			}
 
-		        String title = (log.getTitle() != null && !log.getTitle().isBlank())
-		                ? log.getTitle()
-		                : "(제목 없음)";
+			String title = (log.getTitle() != null && !log.getTitle().isBlank()) ? log.getTitle() : "(제목 없음)";
 
-		        String main = log.getMainContent();
-		        String mainSnippet = "";
-		        if (main != null && !main.isBlank()) {
-		            // 너무 길면 앞부분만 잘라서 재료로만 사용 (진짜 요약은 AI가 함)
-		            mainSnippet = main.length() > 400 ? main.substring(0, 400) + "..." : main;
-		        }
+			String main = log.getMainContent();
+			String mainSnippet = "";
+			if (main != null && !main.isBlank()) {
+				// 너무 길면 앞부분만 잘라서 재료로만 사용 (진짜 요약은 AI가 함)
+				mainSnippet = main.length() > 400 ? main.substring(0, 400) + "..." : main;
+			}
 
-		        sb.append(index++).append(". 제목: ").append(title).append("\n");
-		        if (regDateStr != null) {
-		            sb.append("   작성일: ").append(regDateStr).append("\n");
-		        }
-		        if (!mainSnippet.isBlank()) {
-		            sb.append("   내용: ").append(mainSnippet).append("\n");
-		        }
-		        sb.append("\n");
-		    }
-
-		    String worklogListText = sb.toString();
-
-		    // ✅ 3) 여기서 AI에게 "인수인계용 문단" 만들어달라고 요청
-		    String aiSummary = workChatAIService.generateHandoverSummary(worklogListText);
-
-		    // 혹시라도 AI가 빈 값 주면, 최소한 재료 텍스트라도 넣어주기
-		    if (aiSummary == null || aiSummary.isBlank()) {
-		        return worklogListText;
-		    }
-		    aiSummary = aiSummary.replaceAll("\\n([2-9]\\. )", "\n\n$1");
-		    // 👉 최종적으로 인수인계서 ${handover_content}에 들어갈 내용
-		    return aiSummary;
+			sb.append(index++).append(". 제목: ").append(title).append("\n");
+			if (regDateStr != null) {
+				sb.append("   작성일: ").append(regDateStr).append("\n");
+			}
+			if (!mainSnippet.isBlank()) {
+				sb.append("   내용: ").append(mainSnippet).append("\n");
+			}
+			sb.append("\n");
 		}
-	
-	
+
+		String worklogListText = sb.toString();
+
+		// ✅ 3) 여기서 AI에게 "인수인계용 문단" 만들어달라고 요청
+		String aiSummary = workChatAIService.generateHandoverSummary(worklogListText);
+
+		// 혹시라도 AI가 빈 값 주면, 최소한 재료 텍스트라도 넣어주기
+		if (aiSummary == null || aiSummary.isBlank()) {
+			return worklogListText;
+		}
+		aiSummary = aiSummary.replaceAll("\\n([2-9]\\. )", "\n\n$1");
+		// 👉 최종적으로 인수인계서 ${handover_content}에 들어갈 내용
+		return aiSummary;
+	}
+
+	@GetMapping("/workLog/range")
+	public List<WorkLog> getLogsByRange(@RequestParam String startDate, @RequestParam String endDate,
+			HttpSession session) {
+		Integer loginId = (Integer) session.getAttribute("logindeMemberId");
+		if (loginId == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		int memberId = loginId;
+		LocalDate s = LocalDate.parse(startDate);
+		LocalDate e = LocalDate.parse(endDate);
+		// 해당 기간 업무 일지 목록 가져오기
+		return this.workLogService.getLogsByDateRange(memberId, s, e);
+	}
+
+	@GetMapping("/workLog/weekly/summary")
+	public Map<String, String> getWeeklySummary(@RequestParam String startDate, @RequestParam String endDate,
+			HttpSession session) {
+		Integer memberIdObj = (Integer) session.getAttribute("logindeMemberId");
+
+		if (memberIdObj == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		int memberId = memberIdObj;
+
+		LocalDate s = LocalDate.parse(startDate);
+		LocalDate e = LocalDate.parse(endDate);
+
+		List<WorkLog> logs = this.workLogService.getLogsByDateRange(memberId, s, e);
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("아래는").append(s).append("부터").append(e).append("까지 작성한 업무일지 목록입니다.\n")
+				.append("각 항목은 제목, 작성일, 주요 내용을 포함합니다.");
+
+		int index = 1; // 카운터 변수
+		for (WorkLog log : logs) {
+			String regDateStr = log.getRegDate();
+			if (regDateStr != null && regDateStr.length() >= 10) {
+				regDateStr = regDateStr.substring(0, 10);
+			}
+			String title = (log.getTitle() != null && !log.getTitle().isBlank()) ? log.getTitle() : "(제목 없음)";
+
+			String main = log.getMainContent();
+			String mainSnippet = "";
+
+			if (main != null && !main.isBlank()) {
+				mainSnippet = main.length() > 400 ? main.substring(0, 400) + "..." : main;
+			}
+
+			sb.append(index++).append(". 제목: ").append(title).append("\n");
+			if (regDateStr != null) {
+				sb.append("   작성일: ").append(regDateStr).append("\n");
+			}
+			if (!mainSnippet.isBlank()) {
+				sb.append("   내용: ").append(mainSnippet).append("\n");
+			}
+			sb.append("\n");
+		}
+		if (logs == null || logs.isEmpty()) {
+		    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "해당 기간에 업무일지가 없습니다.");
+		}
+		
+		String workLogListText = sb.toString();
+		
+		String aiSummary = workChatAIService.generateWeeklySummary(workLogListText);
+		
+		if (aiSummary == null || aiSummary.isBlank()) {
+	        aiSummary = workLogListText;
+	    }
+		Map<String, String> result = new HashMap<>();
+	    result.put("summary", aiSummary);
+	    return result;
+	}
 
 }
