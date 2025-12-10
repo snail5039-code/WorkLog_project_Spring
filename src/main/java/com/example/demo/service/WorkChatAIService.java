@@ -49,74 +49,73 @@ public class WorkChatAIService {
 		System.out.println(rawAiResponse);
 		System.out.println("--------------------------");
 
-		// 2. ⭐️ [강력 보강 로직] JSON 추출 로직
+		// 응답이 비거나 null이면 바로 fallback JSON
+	    if (rawAiResponse == null || rawAiResponse.isBlank()) {
+	        return buildFallbackJson(templateId, "");
+	    }
 
-		// A. 먼저 마크다운 백틱(`)만 제거합니다.
-		String cleanJson = rawAiResponse.trim().replaceAll("```json|```", "").trim();
+	    // A. 마크다운 백틱 제거
+	    String cleanJson = rawAiResponse.trim()
+	            .replaceAll("```json", "")
+	            .replaceAll("```", "")
+	            .trim();
 
-		// B. JSON 객체의 시작 부분인 '{' 또는 '['를 찾아 그 이전의 모든 텍스트를 버립니다.
-		int jsonStartIndex = -1;
-		int bracketIndex = cleanJson.indexOf('{');
-		int arrayIndex = cleanJson.indexOf('[');
+	    // B. JSON 시작 위치 찾기 ({ 또는 [)
+	    int jsonStartIndex = -1;
+	    int braceIndex = cleanJson.indexOf('{');
+	    int bracketIndex = cleanJson.indexOf('[');
 
-		if (bracketIndex != -1 && (arrayIndex == -1 || bracketIndex < arrayIndex)) {
-			jsonStartIndex = bracketIndex; // '{'가 먼저 나옴
-		} else if (arrayIndex != -1) {
-			jsonStartIndex = arrayIndex; // '['가 먼저 나옴
-		}
+	    if (braceIndex != -1 && (bracketIndex == -1 || braceIndex < bracketIndex)) {
+	        jsonStartIndex = braceIndex;   // { 가 먼저
+	    } else if (bracketIndex != -1) {
+	        jsonStartIndex = bracketIndex; // [ 가 먼저
+	    }
 
-		if (jsonStartIndex != -1) {
-			cleanJson = cleanJson.substring(jsonStartIndex).trim(); // 괄호부터 끝까지 추출
-		} else {
-			// '{' 나 '['이 전혀 없다면, 원본 반환 (JSON 아님)
-			return rawAiResponse;
-		}
+	    if (jsonStartIndex == -1) {
+	        // JSON 시작 자체를 못 찾으면 → 공통 fallback JSON
+	        System.out.println("[AI] JSON 시작 문자({ 또는 [)를 찾지 못했습니다. fallback 반환");
+	        return buildFallbackJson(templateId, rawAiResponse);
+	    }
 
-		// C. ⭐️ [추가된 로직] JSON의 끝을 찾아 그 이후의 텍스트를 모두 버립니다.
-		int endIndex = -1;
-		int lastBrace = cleanJson.lastIndexOf('}');
-		int lastBracket = cleanJson.lastIndexOf(']');
+	    cleanJson = cleanJson.substring(jsonStartIndex).trim();
 
-		// 가장 뒤에 나오는 닫는 괄호나 대괄호를 JSON의 끝으로 간주
-		if (lastBrace > lastBracket) {
-			endIndex = lastBrace;
-		} else if (lastBracket > -1) {
-			endIndex = lastBracket;
-		}
+	    // C. JSON 끝 위치 찾기 (마지막 } 또는 ])
+	    int lastBrace = cleanJson.lastIndexOf('}');
+	    int lastBracket = cleanJson.lastIndexOf(']');
+	    int endIndex = Math.max(lastBrace, lastBracket);
 
-		if (endIndex != -1) {
-			// endIndex + 1을 하여 닫는 괄호도 포함하여 자르고, 그 이후의 모든 문자를 버립니다.
-			cleanJson = cleanJson.substring(0, endIndex + 1).trim();
-		} else {
-			// 시작점은 찾았는데 끝점을 못 찾았다면, 불완전한 JSON이므로 원본 반환
-			return rawAiResponse;
-		}
-		// ⭐️ [추가된 로직 끝]
+	    if (endIndex == -1) {
+	        // 닫는 괄호 못 찾으면 → 공통 fallback JSON
+	        System.out.println("[AI] JSON 닫는 문자(} 또는 ])를 찾지 못했습니다. fallback 반환");
+	        return buildFallbackJson(templateId, rawAiResponse);
+	    }
 
-		// 3. 추출된 cleanJson이 유효한지 최종 검증
-		try {
-			JsonNode root = objectMapper.readTree(cleanJson);
+	    cleanJson = cleanJson.substring(0, endIndex + 1).trim();
 
-			// ⭐️ 오늘 날짜로 TPL1_DATE 강제 세팅
-			if (root.isObject()) {
-				ObjectNode obj = (ObjectNode) root;
-				obj.put("TPL1_DATE", LocalDate.now().toString()); // 예: 2025-12-06 오늘 날짜 강제 삽입 하는거임
-				cleanJson = objectMapper.writeValueAsString(obj);
-			}
+	    // 3. 최종 JSON 검증 + (필요하면 날짜 필드 주입)
+	    try {
+	        JsonNode root = objectMapper.readTree(cleanJson);
 
-			System.out.println("--- AI 최종 반환 값 (CLEAN JSON + TODAY) ---");
-			System.out.println(cleanJson);
-			System.out.println("-------------------------------------------");
-			return cleanJson;
-		} catch (Exception jsonError) {
-			System.err.println("최종 AI 응답이 유효한 JSON 형식이 아닙니다. 원본 반환.");
+	        if (root.isObject()) {
+	            ObjectNode obj = (ObjectNode) root;
 
-			// ⭐️ [로그 추가] 파싱 실패 시 로그
-			System.out.println("--- AI 최종 반환 값 (RAW 원본 반환) ---");
-			System.out.println(rawAiResponse);
-			System.out.println("------------------------------------");
-			return rawAiResponse;
-		}
+	            // ✅ 기존에 쓰던 날짜 필드 있으면 여기서 세팅
+	            //    (지금은 예시로 TPL1_DATE 유지, 필요 없으면 이 줄 지워도 됨)
+	            obj.put("TPL1_DATE", LocalDate.now().toString());
+
+	            cleanJson = objectMapper.writeValueAsString(obj);
+	        }
+
+	        System.out.println("--- AI 최종 반환 값 (CLEAN JSON) ---");
+	        System.out.println(cleanJson);
+	        System.out.println("-----------------------------------");
+
+	        return cleanJson;
+	    } catch (Exception jsonError) {
+	        System.err.println("[AI] 최종 AI 응답이 유효한 JSON 형식이 아닙니다. fallback JSON 반환.");
+	        jsonError.printStackTrace();
+	        return buildFallbackJson(templateId, rawAiResponse);
+	    }
 	}
 
 	public String generateHandoverSummary(String worklogListText) {
@@ -194,4 +193,35 @@ public class WorkChatAIService {
 	    }
 	    return result.trim();
 	}
+	
+	// ✨ 어떤 템플릿이든 공통으로 쓰는 fallback JSON
+	private String buildFallbackJson(String templateId, String rawAiResponse) {
+	    try {
+	        ObjectNode root = objectMapper.createObjectNode();
+
+	        // 메타 정보 (어떤 템플릿에서 실패했는지)
+	        ObjectNode meta = objectMapper.createObjectNode();
+	        meta.put("templateId", templateId);
+	        meta.put("status", "ERROR");
+	        root.set("_meta", meta);
+
+	        // 사람이 읽을 수 있는 메시지
+	        root.put("message", "AI 요약 JSON 생성 실패");
+
+	        // AI가 실제로 뭐라고 했는지 전체 저장 (디버깅용, 화면 표시용)
+	        root.put("raw", rawAiResponse);
+
+	        return objectMapper.writeValueAsString(root);
+	    } catch (Exception e) {
+	        // 여기서까지 터질 일은 거의 없음. 그래도 최후의 수단으로 최소 JSON 반환
+	        return """
+	               {
+	                 "_meta": { "status": "ERROR", "templateId": "%s" },
+	                 "message": "AI 요약 JSON 생성 실패 (fallback 내부 에러)",
+	                 "raw": ""
+	               }
+	               """.formatted(templateId);
+	    }
+	}
+
 }

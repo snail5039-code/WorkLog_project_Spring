@@ -16,7 +16,6 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -30,11 +29,13 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.demo.dto.HandoverLog;
 import com.example.demo.dto.Member;
 import com.example.demo.dto.TemplateUsageDto;
 import com.example.demo.dto.WorkLog;
 import com.example.demo.service.DocxTemplateService;
 import com.example.demo.service.FileAttachService;
+import com.example.demo.service.HandoverLogService;
 import com.example.demo.service.HandoverTemplateService;
 import com.example.demo.service.MemberService;
 import com.example.demo.service.TemplateValueService;
@@ -60,12 +61,13 @@ public class WorkLogController {
 	private final DocxTemplateService docxTemplateService;
 	private final MemberService memberService;
 	private final HandoverTemplateService handoverTemplateService;
+	private final HandoverLogService handoverLogService;
 
 	// 의존성 주입
 	public WorkLogController(WorkLogService workLogService, FileAttachService fileAttachService,
 			WorkChatAIService workChatAIService, TemplateValueService templateValueService,
 			DocxTemplateService docxTemplateService, MemberService memberService,
-			HandoverTemplateService handoverTemplateService) {
+			HandoverTemplateService handoverTemplateService, HandoverLogService handoverLogService) {
 		this.workLogService = workLogService;
 		this.fileAttachService = fileAttachService;
 		this.workChatAIService = workChatAIService;
@@ -73,6 +75,7 @@ public class WorkLogController {
 		this.docxTemplateService = docxTemplateService;
 		this.memberService = memberService;
 		this.handoverTemplateService = handoverTemplateService;
+		this.handoverLogService = handoverLogService;
 	}
 
 	// 💡 실제로 쓸 엔드포인트
@@ -312,6 +315,26 @@ public class WorkLogController {
 
 		return result;
 	}
+	
+	@GetMapping("/handover/list") // 페이징 처리도 같이함
+	public Map<String, Object> getMyHandoverList(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "10") int size, HttpSession session) {
+		Integer memberId = (Integer) session.getAttribute("logindeMemberId");
+		if(memberId == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		if(page < 1) page = 1;
+		if(size <= 0 || size > 100) size = 10;
+		
+		int offset = (page - 1) * size;
+		
+		List<HandoverLog> items = this.handoverLogService.getMyHandoverLog(memberId, offset, size);
+		int totalCount = this.handoverLogService.getMyHandoverLogCount(memberId);
+		
+		Map<String, Object> result = new HashMap<>();
+		result.put("items", items);
+		result.put("totalCount", totalCount);
+		return result;
+	}
 
 	@GetMapping("/usr/work/detail/{id}")
 	public WorkLog showDetail(@PathVariable("id") int id) {
@@ -323,8 +346,7 @@ public class WorkLogController {
 		return this.workLogService.doModify(id, modifyData);
 	}
 
-	// 테스트 할거
-	@GetMapping("/handover/download")
+	@GetMapping("/handover/download") // 다운로드
 	public ResponseEntity<byte[]> downloadHandover(HttpSession session, String title, String toName, String toJob,
 			String fromJob, String fromDateStr, String toDateStr) throws IOException {
 
@@ -342,12 +364,9 @@ public class WorkLogController {
 		if (title == null || title.isBlank()) {
 			title = "업무 인수인계";
 		}
-		if (toName == null)
-			toName = "";
-		if (toJob == null)
-			toJob = "";
-		if (fromJob == null)
-			fromJob = "";
+		if (toName == null) toName = "";
+		if (toJob == null) toJob = "";
+		if (fromJob == null) fromJob = "";
 
 		LocalDate fromDate = null;
 		LocalDate toDate = null;
@@ -361,9 +380,10 @@ public class WorkLogController {
 		String content = buildHandoverContent(memberId, fromDate, toDate);
 		String date = LocalDate.now().toString(); // "2025-12-09" 이런 형식
 
-		Map<String, String> values = handoverTemplateService.buildBaseValues(me, toName, toJob, title, content, date,
-				fromJob);
-
+		Map<String, String> values = handoverTemplateService.buildBaseValues(me, toName, toJob, title, content, date, fromJob);
+		
+		this.handoverLogService.saveHandoverLog(memberId, me.getName(), title, toName, toJob, fromJob, fromDate, toDate,  content);
+		
 		byte[] fileBytes = docxTemplateService.fileTemplate("업무 인수인계서.docx", values);
 
 		HttpHeaders headers = new HttpHeaders();
@@ -376,6 +396,49 @@ public class WorkLogController {
 
 		return new ResponseEntity<>(fileBytes, headers, HttpStatus.OK);
 
+	}
+	
+	@GetMapping("/handover/download/{id}") // 여기는 목록에서 다운
+	public ResponseEntity<byte[]> downloadHandoverById(@PathVariable int id, HttpSession session) throws IOException {
+		Integer memberId = (Integer) session.getAttribute("logindeMemberId");
+
+		if (memberId == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		} 
+		
+		HandoverLog log = this.handoverLogService.findById(id);
+		if(log == null) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "인수인계 내역을 찾을 수 없습니다.");
+		}
+		
+		if(log.getMemberId() != memberId) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인의 인수인계 내역만 다운로드할 수 있습니다.");
+		}
+		
+		Member me = memberService.getMemberById(memberId);
+	    if (me == null) {
+	        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원 정보를 찾을 수 없습니다.");
+	    }
+	    
+	    String content = log.getContent();
+	    String dateStr = LocalDate.now().toString();
+	    
+	    Map<String, String> values = this.handoverTemplateService.buildBaseValues(me, log.getToName(), log.getToJob(), log.getTitle(), content, dateStr, log.getFromJob());
+	    
+	    byte[] fileBytes = this.docxTemplateService.fileTemplate("업무 인수인계서.docx", values);
+	    
+	    HttpHeaders headers = new HttpHeaders();
+	    headers.setContentType(MediaType.parseMediaType(
+	            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	    ));
+
+	    String filename = ("인수인계서_" + log.getId() + ".docx");
+	    headers.setContentDispositionFormData(
+	            "attachment",
+	            new String(filename.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1)
+	    );
+
+	    return new ResponseEntity<>(fileBytes, headers, HttpStatus.OK);
 	}
 
 	private String buildHandoverContent(int memberId, LocalDate fromDate, LocalDate toDate) {
@@ -458,5 +521,7 @@ public class WorkLogController {
 		    // 👉 최종적으로 인수인계서 ${handover_content}에 들어갈 내용
 		    return aiSummary;
 		}
+	
+	
 
 }

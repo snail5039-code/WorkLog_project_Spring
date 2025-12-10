@@ -1,5 +1,4 @@
 DROP DATABASE workLog_project;
-
 CREATE DATABASE workLog_project;
 
 USE workLog_project;
@@ -14,10 +13,12 @@ CREATE TABLE workLog(
     , memberId INT UNSIGNED NOT NULL
     , boardId INT UNSIGNED NOT NULL  
 );
-ALTER TABLE workLog ADD COLUMN templateId VARCHAR(20) NOT NULL DEFAULT 'TPL1';
-
+ALTER TABLE workLog ADD COLUMN documentType VARCHAR(10) NOT NULL DEFAULT '6' AFTER sideContent;
 ALTER TABLE workLog ADD COLUMN summaryContent TEXT NOT NULL;
-
+ALTER TABLE workLog MODIFY documentType TEXT;
+ALTER TABLE workLog ADD COLUMN docxPath VARCHAR(255) NULL AFTER sideContent;
+ALTER TABLE workLog ADD COLUMN templateId VARCHAR(20) NOT NULL DEFAULT 'TPL2';
+ALTER TABLE workLog DROP COLUMN templateId;
 CREATE TABLE `member`(
     id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT
     , regDate DATETIME NOT NULL
@@ -34,15 +35,6 @@ CREATE TABLE board (
     id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT 
     , boardName VARCHAR(30) NOT NULL  
 );
-insert into board(boardName) 
-values('공지')
-		,('자유')
-		,('질문과 답변')
-		,('일일업무일지')
-		,('주간업무일지')
-		,('월간업무일지')
-		,('인수인계');
-
 
 CREATE TABLE fileAttach(
 	id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT '첨부파일 고유 번호'
@@ -55,9 +47,39 @@ CREATE TABLE fileAttach(
 );
 
 ALTER TABLE fileAttach MODIFY COLUMN fileSize BIGINT UNSIGNED NOT NULL;
+        
+ 
+CREATE TABLE handoverLog(
+    id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT
+    , regDate DATETIME DEFAULT CURRENT_TIMESTAMP
+    , updateDate DATETIME NULL
+    , memberId INT UNSIGNED NOT NULL
+    , writerName VARCHAR(50) NOT NULL
+    , title VARCHAR(200) NOT NULL
+    , toName VARCHAR(50) NOT NULL
+    , toJob VARCHAR(100) NOT NULL
+    , fromJob VARCHAR(100) NOT NULL
+    , fromDate DATE NULL
+    , toDate DATE NULL
+    , content TEXT NOT NULL
+);       
+    
+        
+INSERT INTO workLog
+    (regDate, updateDate, title, mainContent, sideContent, summaryContent, memberId, templateId, boardId)
+VALUES
+    (NOW(), NOW(), '공지 테스트 1', '공지 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 1),
+    (NOW(), NOW(), '자유글 테스트 1', '자유게시판 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 2),
+    (NOW(), NOW(), '질문글 테스트 1', '질문 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 3),
+    (NOW(), NOW(), '일일 업무일지 1', '일일 업무 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 4),
+    (NOW(), NOW(), '주간 업무일지 1', '주간 업무 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 5),
+    (NOW(), NOW(), '월간 업무일지 1', '월간 업무 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 6),
+    (NOW(), NOW(), '인수인계 테스트 1', '인수인계 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 7);
 
-TRUNCATE TABLE workLog;
-TRUNCATE TABLE fileAttach;
+DELETE FROM template;                
+
+SELECT *
+    FROM template;       
 
 SELECT *
     FROM workLog;
@@ -67,61 +89,3 @@ SELECT *
     
 SELECT *
 	FROM fileAttach;
-
-select *
-	from board;
-
-SELECT COUNT(*)
-	FROM worklog
-	WHERE memberId = 1
-	AND DATE_FORMAT(regDate, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
-	
-SELECT MAX(regDate)
-	FROM workLog
-	WHERE memberId = 1;
-	
-SELECT templateId, COUNT(*)
-	FROM workLog
-	WHERE memberId = 1
-	GROUP BY templateId
-	ORDER BY COUNT(*) DESC
-	LIMIT 3 
-
-INSERT INTO workLog
-(regDate, updateDate, title, mainContent, sideContent, memberId, boardId, templateId, summaryContent)
-VALUES
--- ===== memberId = 1 : 이번 달 (2025-12) 글들 =====
-('2025-12-01 09:00:00', '2025-12-01 09:00:00',
- '12월 업무일지 1', '12월 1일 메인 내용', '12월 1일 보조 내용', 1, 2, 'TPL1', '{}'),
-('2025-12-02 10:00:00', '2025-12-02 10:00:00',
- '12월 업무일지 2', '12월 2일 메인 내용', '12월 2일 보조 내용', 1, 2, 'TPL1', '{}'),
-('2025-12-03 11:00:00', '2025-12-03 11:00:00',
- '12월 업무일지 3', '12월 3일 메인 내용', '12월 3일 보조 내용', 1, 2, 'TPL3', '{}'),
-('2025-12-04 14:30:00', '2025-12-04 14:30:00',
- '12월 업무일지 4', '12월 4일 메인 내용', '12월 4일 보조 내용', 1, 2, 'TPL3', '{}'),
-('2025-12-05 16:00:00', '2025-12-05 16:00:00',
- '12월 업무일지 5', '12월 5일 메인 내용', '12월 5일 보조 내용', 1, 2, 'TPL4', '{}'),
-('2025-12-06 18:20:00', '2025-12-06 18:20:00',
- '12월 업무일지 6', '12월 6일 메인 내용', '12월 6일 보조 내용', 1, 2, 'TPL1', '{}'),
-
--- ===== memberId = 1 : 지난 달 (2025-11) 글들 =====
-('2025-11-10 09:15:00', '2025-11-10 09:15:00',
- '11월 업무일지 1', '11월 10일 메인 내용', '11월 10일 보조 내용', 1, 2, 'TPL1', '{}'),
-('2025-11-15 13:40:00', '2025-11-15 13:40:00',
- '11월 업무일지 2', '11월 15일 메인 내용', '11월 15일 보조 내용', 1, 2, 'TPL3', '{}'),
-('2025-11-20 17:05:00', '2025-11-20 17:05:00',
- '11월 업무일지 3', '11월 20일 메인 내용', '11월 20일 보조 내용', 1, 2, 'TPL4', '{}'),
-
--- ===== memberId = 1 : 오래된 글 =====
-('2025-10-01 09:00:00', '2025-10-01 09:00:00',
- '10월 업무일지 1', '10월 1일 메인 내용', '10월 1일 보조 내용', 1, 2, 'TPL1', '{}'),
-('2025-09-25 15:30:00', '2025-09-25 15:30:00',
- '9월 업무일지 1', '9월 25일 메인 내용', '9월 25일 보조 내용', 1, 2, 'TPL2', '{}'),
-
--- ===== memberId = 2 : 다른 회원 글 =====
-('2025-12-01 08:00:00', '2025-12-01 08:00:00',
- 'user2 12월 업무일지 1', 'user2 메인 내용1', 'user2 보조 내용1', 2, 2, 'TPL1', '{}'),
-('2025-11-05 10:20:00', '2025-11-05 10:20:00',
- 'user2 11월 업무일지 1', 'user2 메인 내용2', 'user2 보조 내용2', 2, 2, 'TPL3', '{}'),
-('2025-10-03 11:11:00', '2025-10-03 11:11:00',
- 'user2 10월 업무일지 1', 'user2 메인 내용3', 'user2 보조 내용3', 2, 2, 'TPL4', '{}');
