@@ -13,12 +13,9 @@ CREATE TABLE workLog(
     , memberId INT UNSIGNED NOT NULL
     , boardId INT UNSIGNED NOT NULL  
 );
-ALTER TABLE workLog ADD COLUMN documentType VARCHAR(10) NOT NULL DEFAULT '6' AFTER sideContent;
 ALTER TABLE workLog ADD COLUMN summaryContent TEXT NOT NULL;
-ALTER TABLE workLog MODIFY documentType TEXT;
-ALTER TABLE workLog ADD COLUMN docxPath VARCHAR(255) NULL AFTER sideContent;
 ALTER TABLE workLog ADD COLUMN templateId VARCHAR(20) NOT NULL DEFAULT 'TPL2';
-ALTER TABLE workLog DROP COLUMN templateId;
+
 CREATE TABLE `member`(
     id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT
     , regDate DATETIME NOT NULL
@@ -30,20 +27,33 @@ CREATE TABLE `member`(
     , sex VARCHAR(20) NOT NULL
     , address VARCHAR(100) NOT NULL
 );
+INSERT INTO MEMBER
+(regDate, updateDate, loginId, loginPw, NAME, email, sex, address)
+VALUES
+(NOW(), NOW(), 'test1', 'test1', '테스트유저', 'test1@test.com', '남', '서울시 어딘가');
+
 
 CREATE TABLE board (
     id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT 
     , boardName VARCHAR(30) NOT NULL  
 );
 
+INSERT INTO board(boardName)
+VALUES('공지사항')
+		,('자유게시판')
+		,('질문과 답변')
+		,('일일업무일지')
+		,('주간업무일지')
+		,('월간업무일지');
+
 CREATE TABLE fileAttach(
-	id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT '첨부파일 고유 번호'
-	, regDate DATETIME NOT NULL
-	, updateDate DATETIME NOT NULL
-	, workLogId INT UNSIGNED NOT NULL
-	, fileName VARCHAR(50) NOT NULL
-	, filePath VARCHAR(150) NOT NULL
-	, fileSize BIGINT NOT NULL
+   id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT '첨부파일 고유 번호'
+   , regDate DATETIME NOT NULL
+   , updateDate DATETIME NOT NULL
+   , workLogId INT UNSIGNED NOT NULL
+   , fileName VARCHAR(50) NOT NULL
+   , filePath VARCHAR(150) NOT NULL
+   , fileSize BIGINT NOT NULL
 );
 
 ALTER TABLE fileAttach MODIFY COLUMN fileSize BIGINT UNSIGNED NOT NULL;
@@ -68,18 +78,20 @@ CREATE TABLE handoverLog(
 INSERT INTO workLog
     (regDate, updateDate, title, mainContent, sideContent, summaryContent, memberId, templateId, boardId)
 VALUES
+     -- 공지 테스트 (boardId 4 = 공지사항)
     (NOW(), NOW(), '공지 테스트 1', '공지 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 1),
+
+    -- 자유게시판 (boardId 5)
     (NOW(), NOW(), '자유글 테스트 1', '자유게시판 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 2),
+
+    -- 질문과 답변 (boardId 6)
     (NOW(), NOW(), '질문글 테스트 1', '질문 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 3),
+
+    -- 일일 / 주간 / 월간 업무일지 (boardId 1,2,3)
     (NOW(), NOW(), '일일 업무일지 1', '일일 업무 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 4),
-    (NOW(), NOW(), '주간 업무일지 1', '주간 업무 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 5),
-    (NOW(), NOW(), '월간 업무일지 1', '월간 업무 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 6),
-    (NOW(), NOW(), '인수인계 테스트 1', '인수인계 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 7);
-
-DELETE FROM template;                
-
-SELECT *
-    FROM template;       
+    (NOW(), NOW(), '주간 업무일지 1', '주간 업무 내용입니다', '보조내용 없음', '{}', 1, 'TPLW1', 5),
+    (NOW(), NOW(), '월간 업무일지 1', '월간 업무 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 6);
+                   
 
 SELECT *
     FROM workLog;
@@ -87,5 +99,12 @@ SELECT *
 SELECT *
     FROM `member`;
     
+TRUNCATE TABLE `member`;
+
 SELECT *
-	FROM fileAttach;
+    FROM board;
+    
+TRUNCATE TABLE board;
+
+SELECT *
+   FROM fileAttach;

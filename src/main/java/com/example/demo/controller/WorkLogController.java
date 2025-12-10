@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -39,7 +40,6 @@ import com.example.demo.service.HandoverLogService;
 import com.example.demo.service.HandoverTemplateService;
 import com.example.demo.service.MemberService;
 import com.example.demo.service.TemplateValueService;
-import com.example.demo.service.WeeklyService;
 import com.example.demo.service.WorkChatAIService;
 import com.example.demo.service.WorkLogService;
 
@@ -63,14 +63,15 @@ public class WorkLogController {
 	private final MemberService memberService;
 	private final HandoverTemplateService handoverTemplateService;
 	private final HandoverLogService handoverLogService;
-	private final WeeklyService weeklyService;
+
+	private static final int BOARD_ID_WEEKLY = 2;
+	private static final int BOARD_ID_MONTHLY = 3;
 
 	// 의존성 주입
 	public WorkLogController(WorkLogService workLogService, FileAttachService fileAttachService,
 			WorkChatAIService workChatAIService, TemplateValueService templateValueService,
 			DocxTemplateService docxTemplateService, MemberService memberService,
-			HandoverTemplateService handoverTemplateService, HandoverLogService handoverLogService,
-			WeeklyService weeklyService) {
+			HandoverTemplateService handoverTemplateService, HandoverLogService handoverLogService) {
 		this.workLogService = workLogService;
 		this.fileAttachService = fileAttachService;
 		this.workChatAIService = workChatAIService;
@@ -79,7 +80,6 @@ public class WorkLogController {
 		this.memberService = memberService;
 		this.handoverTemplateService = handoverTemplateService;
 		this.handoverLogService = handoverLogService;
-		this.weeklyService = weeklyService;
 	}
 
 	// 💡 실제로 쓸 엔드포인트
@@ -92,12 +92,19 @@ public class WorkLogController {
 		if (log == null) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "업무일지를 찾을 수 없습니다.");
 		}
-		String summaryJson = log.getSummaryContent();
-		if (summaryJson == null || summaryJson.isEmpty()) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이 업무일지에는 템플릿 데이터를 위한 요약이 없습니다.");
-		}
+		
+		// 📌 1) 주간 템플릿(TPLW1) 이면 따로 처리
+	    if ("TPLW1".equalsIgnoreCase(templateId)) {
+	        return downloadWeeklyTemplate(log);   // 아래에 메서드 하나 만들 거야
+	    }
+	    
+	    String summaryJson = log.getSummaryContent();
+	    if (summaryJson == null || summaryJson.isEmpty()) {
+	        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이 업무일지에는 템플릿 데이터를 위한 요약이 없습니다.");
+	    }
 		// 나중에 양식 더 추가 시키기
 		String docxFileName;
+		
 		switch (templateId.toUpperCase()) {
 		case "TPL1":
 			docxFileName = "업무일지양식1.docx";
@@ -122,7 +129,8 @@ public class WorkLogController {
 		}
 
 		// 자동 치환 메서드 호출
-		Map<String, String> values = templateValueService.buildValuesFromJson(summaryJson);
+		Map<String, String> values =templateValueService.buildValuesFromJson(summaryJson);
+		
 		// 3) 템플릿 적용
 		byte[] fileBytes = docxTemplateService.fileTemplate(docxFileName, values);
 
@@ -137,7 +145,7 @@ public class WorkLogController {
 	}
 
 	@PostMapping("/usr/work/workLog") // MultipartFile 이거는 스프링부트 내장이라서 바로 사용 가능함, 리액트에서 multiple를 받아온거!
-	public String writeWorkLog(String title, String mainContent, String sideContent, String templateId,
+	public String writeWorkLog(@RequestParam int boardId, String title, String mainContent, String sideContent, String templateId,
 			List<MultipartFile> files, HttpSession session) {
 		// 여기는 ai한테 입력된 값 넘기는 곳!
 		String finalAiReport = null;
@@ -175,7 +183,7 @@ public class WorkLogController {
 			workLogData.setSummaryContent("{}");
 		}
 
-		this.workLogService.writeWorkLog(workLogData, memberIdObj);
+		this.workLogService.writeWorkLog(workLogData, memberIdObj, boardId);
 
 		int workLogId = this.workLogService.getLastInsertId();
 //		 첨부 파일 처리, 맨 위는 로그인 안된 상태에서 넘길때 방지
@@ -461,6 +469,11 @@ public class WorkLogController {
 		}
 
 		List<WorkLog> filtered = logs.stream().filter(log -> {
+			// ✅ 1) 일일 업무일지(boardId = 4)만 사용
+		    if (log.getBoardId() != 4) {
+		        return false;
+		    }
+		    
 			String regDateStr = log.getRegDate();
 			if (regDateStr == null || regDateStr.isBlank()) {
 				return false;
@@ -555,9 +568,13 @@ public class WorkLogController {
 
 		LocalDate s = LocalDate.parse(startDate);
 		LocalDate e = LocalDate.parse(endDate);
-
+	
 		List<WorkLog> logs = this.workLogService.getLogsByDateRange(memberId, s, e);
-
+		
+		if (logs == null || logs.isEmpty()) {
+	        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "해당 기간에 업무일지가 없습니다.");
+	    }
+		
 		StringBuilder sb = new StringBuilder();
 		sb.append("아래는").append(s).append("부터").append(e).append("까지 작성한 업무일지 목록입니다.\n")
 				.append("각 항목은 제목, 작성일, 주요 내용을 포함합니다.");
@@ -586,20 +603,158 @@ public class WorkLogController {
 			}
 			sb.append("\n");
 		}
-		if (logs == null || logs.isEmpty()) {
-		    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "해당 기간에 업무일지가 없습니다.");
-		}
-		
 		String workLogListText = sb.toString();
-		
+
 		String aiSummary = workChatAIService.generateWeeklySummary(workLogListText);
-		
+
 		if (aiSummary == null || aiSummary.isBlank()) {
-	        aiSummary = workLogListText;
-	    }
+			aiSummary = workLogListText;
+		}
 		Map<String, String> result = new HashMap<>();
-	    result.put("summary", aiSummary);
+		result.put("summary", aiSummary);
+		return result;
+	}
+
+	@PostMapping("/usr/work/weekly/register") // 주간 요약 후 게시판 등록
+	public Map<String, Object> registerWeeklySummary(@RequestBody Map<String, String> body, HttpSession session) {
+		Integer loginId = (Integer) session.getAttribute("logindeMemberId");
+		if (loginId == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		int memberId = loginId;
+
+		String startDateStr = body.get("startDate");
+		String endDateStr = body.get("endDate");
+
+		if (startDateStr == null || endDateStr == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "기간 정보가 없습니다.");
+		}
+
+		LocalDate s = LocalDate.parse(startDateStr);
+		LocalDate e = LocalDate.parse(endDateStr);
+
+		List<WorkLog> logs = this.workLogService.getLogsByDateRange(memberId, s, e);
+		if (logs == null || logs.isEmpty()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "해당 기간에 업무일지가 없습니다.");
+		}
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("아래는 ").append(s).append("부터 ").append(e).append("까지 작성한 업무일지 목록입니다.\n")
+				.append("각 항목은 제목, 작성일, 주요 내용을 포함합니다.\n\n");
+
+		int index = 1; // 번호 매기기용 카운터
+		for (WorkLog log : logs) {
+			String regDateStr = log.getRegDate();
+			if (regDateStr != null && regDateStr.length() >= 10) {
+				regDateStr = regDateStr.substring(0, 10); // yyyy-MM-dd
+			}
+
+			String title = (log.getTitle() != null && !log.getTitle().isBlank()) ? log.getTitle() : "(제목 없음)";
+
+			String main = log.getMainContent();
+			String mainSnippet = "";
+			if (main != null && !main.isBlank()) {
+				// 너무 길면 앞부분만 잘라서 AI 재료로만 사용
+				mainSnippet = main.length() > 400 ? main.substring(0, 400) + "..." : main;
+			}
+
+			sb.append(index++).append(". 제목: ").append(title).append("\n");
+			if (regDateStr != null) {
+				sb.append("   작성일: ").append(regDateStr).append("\n");
+			}
+			if (!mainSnippet.isBlank()) {
+				sb.append("   내용: ").append(mainSnippet).append("\n");
+			}
+			sb.append("\n");
+		}
+
+		String worklogListText = sb.toString();
+
+		// ai 주간 요약 생성 요청
+		String aiSummary = workChatAIService.generateWeeklySummary(worklogListText);
+		if (aiSummary == null || aiSummary.isBlank()) {
+			aiSummary = worklogListText;
+		}
+
+		String title = String.format("주간 업무일지 (%s ~ %s)", s.toString(), e.toString());
+		String periodText = String.format("%s ~ %s", s.toString(), e.toString());
+		
+		WorkLog weeklyLog = new WorkLog();
+	    weeklyLog.setTitle(title);                 // 제목: "주간 업무일지 (기간)"
+	    weeklyLog.setMainContent(aiSummary);       // 본문: AI가 요약한 내용
+	    weeklyLog.setSideContent(periodText);      // 보조내용: "2025-12-01 ~ 2025-12-07"
+	    weeklyLog.setTemplateId("TPLW1");          // 나중에 주간 DOCX 템플릿용 ID (그냥 약속)
+	    weeklyLog.setSummaryContent("{}");         // 주간은 JSON 요약 안 쓸 거라 일단 빈 값
+	    
+	    this.workLogService.writeWorkLogToBoard(weeklyLog, memberId, BOARD_ID_WEEKLY);
+	    
+	    int newId = this.workLogService.getLastInsertId();
+	    
+	    Map<String, Object> result = new HashMap<>();
+	    result.put("id", newId);
+	    result.put("message", "주간 요약 게시글이 등록되었습니다.");
 	    return result;
 	}
+	// 주간 업무일지 다운로드 할 수 있게 따론 빼논 메서드 
+	private ResponseEntity<byte[]> downloadWeeklyTemplate(WorkLog log) throws IOException {
+	    // 1) 워드 파일 이름 (네가 저장한 이름으로 맞춰줘!)
+	    String docxFileName = "주간업무보고서.docx"; // 실제 파일명으로 수정
+
+	    // 2) 작성자 / 기간
+	    String writer = log.getWriterName();          // showDetail에서 join으로 가져온 loginId
+	    if (writer == null || writer.isBlank()) {
+	        writer = "작성자"; // 혹시 null이면 기본값
+	    }
+
+	    String period = log.getSideContent();         // "2025-11-30 ~ 2025-12-06" 이런 텍스트
+
+	    // 3) AI가 만든 전체 주간 요약
+	    String full = log.getMainContent();
+	    if (full == null) full = "";
+
+	    String mainText = full;
+	    String issueText = "";
+
+	    // 4) "2. 이슈 / 위험 요소" 부분만 잘라내기
+	    int idx2 = full.indexOf("2.");
+	    if (idx2 != -1) {
+	        int idx3 = full.indexOf("3.", idx2);  // 3번 시작 위치 (없으면 끝까지)
+	        if (idx3 == -1) {
+	            idx3 = full.length();
+	        }
+
+	        issueText = full.substring(idx2, idx3).trim();  // 2번 블록만
+
+	        // 메인 텍스트에서는 2번 부분을 빼고 1,3,4만 남기기
+	        String before = full.substring(0, idx2);
+	        String after = full.substring(idx3);
+	        mainText = (before + "\n" + after).trim();
+	    }
+
+	    // 5) 워드 템플릿에 넘길 플레이스홀더 값 세팅
+	    Map<String, String> values = new HashMap<>();
+	    values.put("${TPLW1_WRITER}", writer);
+	    values.put("${TPLW1_PERIOD}", period != null ? period : "");
+	    values.put("${TPLW1_MAIN}", mainText);
+	    values.put("${TPLW1_ISSUE}", issueText);
+
+	    // 6) DOCX 생성
+	    byte[] fileBytes = docxTemplateService.fileTemplate(docxFileName, values);
+
+	    // 7) 헤더 세팅 & 응답
+	    HttpHeaders headers = new HttpHeaders();
+	    headers.setContentType(
+	            MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+
+	    String filename = "주간업무보고서_" + log.getId() + ".docx";
+	    headers.setContentDisposition(
+	            ContentDisposition.attachment()
+	                    .filename(filename, StandardCharsets.UTF_8)
+	                    .build()
+	    );
+
+	    return new ResponseEntity<>(fileBytes, headers, HttpStatus.OK);
+	}
+
 
 }

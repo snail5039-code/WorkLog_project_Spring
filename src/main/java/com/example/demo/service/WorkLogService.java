@@ -22,8 +22,8 @@ public class WorkLogService {
 		this.fileAttachService = fileAttachService;
 	}
 	
-	public void writeWorkLog(WorkLog workLogData, int memberId) {
-		this.workLogDao.writeWorkLog(workLogData, memberId);
+	public void writeWorkLog(WorkLog workLogData, int memberId, int boardId) {
+		this.workLogDao.writeWorkLog(workLogData, memberId, boardId);
 	}
 
 	public List<WorkLog> showList() {
@@ -94,6 +94,10 @@ public class WorkLogService {
 
 	public List<WorkLog> getLogsByDateRange(int memberId, LocalDate s, LocalDate e) {
 		return this.workLogDao.getLogsByDateRange(memberId, s, e);
+	}
+
+	public void writeWorkLogToBoard(WorkLog weeklyLog, int memberId, int boardId) {
+		this.workLogDao.writeWorkLogToBoard(weeklyLog, memberId, boardId);
 	}
 
 	

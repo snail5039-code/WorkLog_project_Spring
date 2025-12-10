@@ -26,9 +26,9 @@ public interface WorkLogDao {
 					, summaryContent = #{workLogData.summaryContent}
 					, memberId = #{memberId} 
 					, templateId = #{workLogData.templateId}              
-					, boardId = 1                   
+					, boardId = #{boardId}                   
 			""")
-	public void writeWorkLog(@Param("workLogData") WorkLog workLogData, @Param("memberId") int memberId);
+	public void writeWorkLog(@Param("workLogData") WorkLog workLogData, @Param("memberId") int memberId, @Param("boardId") int boardId);
 
 	@Select("""
 			select w.*, m.loginId as writerName
@@ -150,10 +150,23 @@ public interface WorkLogDao {
 			select * 
 				from workLog
 				where memberId = #{memberId}
+					and boardId = 4
 					and date(regDate) between #{s} and #{e}
 				order by regDate asc
 			""")
 	public List<WorkLog> getLogsByDateRange(int memberId, LocalDate s, LocalDate e);
-
-
+	
+	@Insert("""
+			insert into workLog
+				set regDate = now()
+					, updateDate = now()
+					, title = #{log.title}
+					, mainContent = #{log.mainContent}
+					, sideContent = #{log.sideContent}
+					, summaryContent = #{log.summaryContent}
+					, memberId = #{memberId}
+					, templateId = #{log.templateId}
+					, boardId = #{boardId}
+			""")
+	public void writeWorkLogToBoard(@Param("log") WorkLog weeklyLog, @Param("memberId") int memberId, @Param("boardId") int boardId);
 }
