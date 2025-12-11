@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -169,4 +170,10 @@ public interface WorkLogDao {
 					, boardId = #{boardId}
 			""")
 	public void writeWorkLogToBoard(@Param("log") WorkLog weeklyLog, @Param("memberId") int memberId, @Param("boardId") int boardId);
+	
+	@Delete("""
+			delete from workLog 
+				where id = #{id}
+			""")
+	public void deleteWorkLog(int id);
 }

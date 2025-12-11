@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -203,6 +204,39 @@ public class WorkLogController {
 		}
 		return "데이터 입력 완료";
 	}
+	
+	@PostMapping("/usr/work/simplePost")
+	public Map<String, Object> writeSimplePost(@RequestBody WorkLog body, HttpSession session) {
+		Integer memberIdObj = (Integer) session.getAttribute("logindeMemberId");
+	    if (memberIdObj == null) {
+	        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+	    }
+	    int memberId = memberIdObj;
+	    int boardId = body.getBoardId();
+	    
+	    if(boardId == 1 && memberId != 1) {
+	    	throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공지사항은 관리자만 작성할 수 있습니다.");
+	    }
+	    
+	    if(boardId != 1 && boardId != 2 && boardId != 3) {
+	    	throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "일반 게시판만 가능합니다.");
+	    }
+	    
+	    WorkLog log = new WorkLog();
+	    log.setTitle(body.getTitle());
+	    log.setMainContent(body.getMainContent());
+	    log.setSideContent(null);
+	    log.setTemplateId(null);
+	    log.setSummaryContent(null);
+	    
+	    this.workLogService.writeWorkLog(log, memberId, boardId);
+	    int newId = this.workLogService.getLastInsertId();
+	    
+	    Map<String, Object> result = new HashMap<>();
+	    result.put("id", newId);
+	    result.put("message", "게시글이 등록되었습니다.");
+	    return result;
+	}
 
 	// 파일 다운로드 하게하기
 	@GetMapping("/usr/work/download/{storedFilename}")
@@ -257,11 +291,8 @@ public class WorkLogController {
 	@GetMapping("/usr/workLog/myPageSummary")
 	public Map<String, Object> getMyPageSummary(HttpSession session, @RequestParam(defaultValue = "1") int page,
 			@RequestParam(defaultValue = "10") int size) {
-		int memberId = -1;
-
-		memberId = (int) session.getAttribute("logindeMemberId");
-
-		if (memberId == -1) {
+		Integer memberId = (Integer) session.getAttribute("logindeMemberId");
+		if (memberId == null) {
 			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
 		}
 
@@ -362,6 +393,28 @@ public class WorkLogController {
 	@PostMapping("/usr/work/modify/{id}")
 	public int modify(@PathVariable("id") int id, @RequestBody WorkLog modifyData) {
 		return this.workLogService.doModify(id, modifyData);
+	}
+	
+	@DeleteMapping("/usr/work/{id}")
+	public ResponseEntity<?> deleteWorkLog(@PathVariable("id") int id, HttpSession session) {
+		Integer memberId = (Integer) session.getAttribute("logindeMemberId");
+
+		if (memberId == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		
+		WorkLog workLog = workLogService.showDetail(id);
+		
+	    if (workLog == null) {
+	        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("게시글을 찾을 수 없습니다.");
+	    }
+	    
+		if(!memberId.equals(workLog.getMemberId())) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).body("본인이 작성한 글만 삭제할 수 있습니다.");
+		}
+		
+		this.workLogService.deleteWorkLog(id);
+		return ResponseEntity.noContent().build();
 	}
 
 	@GetMapping("/handover/download") // 다운로드

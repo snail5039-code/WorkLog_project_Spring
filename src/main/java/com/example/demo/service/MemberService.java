@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.demo.dao.MemberDao;
 import com.example.demo.dto.Member;
+import com.example.demo.util.SHA256Util;
 
 @Service
 public class MemberService {
@@ -14,6 +15,11 @@ public class MemberService {
 		this.memberDao = memberDao;
 	}
 	public void memberJoin(Member memberJoin) {
+		String rawPw = memberJoin.getLoginPw();
+		// sha-256 암호화
+		String encPw = SHA256Util.encrypt(rawPw);
+		memberJoin.setLoginPw(encPw);
+		
 		this.memberDao.memberJoin(memberJoin);
 	}
 	public Member getMemberLoginId(Member loginData) {
@@ -32,7 +38,9 @@ public class MemberService {
 		return this.memberDao.findByNameAndEmail(name, email);
 	}
 	public void changePassword(int id, String newPassword) {
-		this.memberDao.changePassword(id, newPassword);
+		String encPw = SHA256Util.encrypt(newPassword);
+				
+		this.memberDao.changePassword(id, encPw);
 	}
 	public Member findByLoginIdAndEmail(String loginId, String email) {
 		return this.memberDao.findByLoginIdAndEmail(loginId, email);

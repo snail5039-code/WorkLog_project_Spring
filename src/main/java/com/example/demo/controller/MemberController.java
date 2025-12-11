@@ -18,6 +18,7 @@ import com.example.demo.dto.Member;
 import com.example.demo.dto.VerifyFindIdRequest;
 import com.example.demo.service.EmailService;
 import com.example.demo.service.MemberService;
+import com.example.demo.util.SHA256Util;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
@@ -58,8 +59,9 @@ public class MemberController {
 			String message = String.format("%s는 존재하지 않는 아이디 입니다.", loginData.getLoginId());
 			return 0;
 		}
-
-		if (!member.getLoginPw().equals(loginData.getLoginPw())) {
+		String encInputPw = SHA256Util.encrypt(loginData.getLoginPw());
+		
+		if (!member.getLoginPw().equals(encInputPw)) {
 			return 0;
 		}
 

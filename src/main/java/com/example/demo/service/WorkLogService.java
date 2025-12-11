@@ -100,5 +100,9 @@ public class WorkLogService {
 		this.workLogDao.writeWorkLogToBoard(weeklyLog, memberId, boardId);
 	}
 
+	public void deleteWorkLog(int id) {
+		this.workLogDao.deleteWorkLog(id);
+	}
+
 	
 }
