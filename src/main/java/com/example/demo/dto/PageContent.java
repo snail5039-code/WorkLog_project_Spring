@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class PageContent {
-	private int id;
+	private Long id;
 	private String url;
     private String title;
     private String content;
