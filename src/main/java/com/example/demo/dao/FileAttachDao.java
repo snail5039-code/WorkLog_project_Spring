@@ -39,4 +39,14 @@ public interface FileAttachDao {
 			""")
 	String getOriginalFilename(String filePath);
 
+
+	@Select("""
+	        SELECT filePath
+			    FROM fileAttach
+			    WHERE workLogId = #{workLogId}
+			    ORDER BY id ASC
+			    LIMIT 1
+			""")
+	String findFirstByWorkLogId(int workLogId);
+
 }

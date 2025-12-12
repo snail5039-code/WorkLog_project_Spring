@@ -1,0 +1,300 @@
+HTML
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+<div class="all-product">
+  <div class="product">
+    <div class="img-garllery">
+      <div class="main-img-area" data-index="0">
+        <img src="https://picsum.photos/200/300?random=1" class="main-img main">
+        <img src="https://picsum.photos/200/300?random=2" class="main-img">
+        <img src="https://picsum.photos/200/300?random=3" class="main-img">
+        <img src="https://picsum.photos/200/300?random=4" class="main-img">
+
+        <div class="btns-area">
+          <button class="left">◀</button>    
+          <button class="right">▶</button>    
+        </div>
+      </div>
+
+      <div class="side-img-area">
+        <img src="https://picsum.photos/200/300?random=1" class="side-img doMain">
+        <img src="https://picsum.photos/200/300?random=2" class="side-img">
+        <img src="https://picsum.photos/200/300?random=3" class="side-img">
+        <img src="https://picsum.photos/200/300?random=4" class="side-img">
+      </div>
+    </div>
+    <div class="product-area">
+      <div class="name">상품명: 코끼리 옷</div>
+      <div class="review">★★★★☆ <span>(4)</span></div>
+      <div class="price">정가: 99,000원</div>
+      <div class="disPrice">할인가: 79,000원</div>
+      <div class="dili">무료배송</div>
+      <div>
+        <select class=:size>
+          <option>사이즈 선택</option>
+          <option>95</option>
+          <option>100</option>
+          <option>105</option>
+          <option>110</option>
+          <option>115</option>
+        </select>
+      </div>
+      <div>
+        <select class=:color>
+          <option>색상 선택</option>
+          <option>빨강</option>
+          <option>파랑</option>
+          <option>초록</option>
+          <option>주황</option>
+          <option>노랑</option>
+        </select>
+      </div>
+      <div class="btns-count-area">
+        <button class="minus">-</button>
+        <input type="text" value="0" class="disPlayCount">
+        <button class="plus">+</button>
+      </div>
+      <div>
+        <button class="jang">장바구니 담기</button>
+      </div>
+      <div>
+        <button class="ch">즉시 구매</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="product-explan">
+    <div class="pro-ex">상품 설명</div>
+    <div>- 상품 설명 1</div>
+    <div>- 상품 설명 2</div>
+    <div>- ...</div>
+    <div class="star">
+      <div class="rev">리뷰</div>
+      <div>사용자1 <span>★★★★★</span> 좋아요!</div>
+      <div>사용자2 <span>★★★★☆</span> 보통이에요!</div>
+    </div>
+      <div class="good">관련 상품 추천</div>
+    <div class="good-img-area">
+      <img src="https://picsum.photos/200/300?random=5">
+      <img src="https://picsum.photos/200/300?random=6">
+      <img src="https://picsum.photos/200/300?random=7">
+    </div>
+  </div>
+</div>
+
+
+CSS
+body {
+  margin: 0;
+}
+
+.all-product {
+  margin: 10px;
+  display: inline-block
+}
+.all-product > .product {
+  display: flex;
+  margin-bottom: 15px;
+}
+
+.all-product > .product > .img-garllery > .main-img-area {
+  width: 500px;
+  height: 400px;
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.all-product > .product > .img-garllery > .main-img-area img {
+  display: none;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.all-product > .product > .img-garllery > .main-img-area > .main-img.main {
+  display: block;
+}
+
+.all-product > .product > .img-garllery > .main-img-area > .btns-area {
+  position: absolute;
+  top: 50%;
+  transform: translatey(-50%);
+  display: flex;
+  justify-content: space-between;
+  left: 10px;
+  right: 10px;
+}
+
+.all-product > .product > .img-garllery > .side-img-area {
+  display: flex;
+  justify-content: space-between;
+}
+
+.all-product > .product > .img-garllery > .side-img-area img {
+  width: 80px;
+  height: 60px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.all-product > .product > .img-garllery > .side-img-area > .side-img.doMain {
+  border: 3px solid blue;
+}
+
+.all-product > .product > .product-area {
+  margin: 0 20px;
+}
+
+.all-product > .product > .product-area > .name {
+  font-weight: bold;
+  font-size: 2rem;
+}
+
+.all-product > .product > .product-area > .review {
+  font-size: 1.5rem;
+  color: gold;
+  margin-bottom: 30px;
+}
+
+.all-product > .product > .product-area > .review > span {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.all-product > .product > .product-area > .price {
+  color: rgba(0, 0, 0, 0.6);
+  text-decoration: line-through;
+  font-size: 1.5rem;
+}
+
+.all-product > .product > .product-area > .disPrice {
+  color: red;
+  font-size: 1.5rem;  
+  font-weight: bold;
+  margin-bottom: 30px;
+}
+.all-product > .product > .product-area > .dili {
+  font-weight: bold;
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.all-product > .product > .product-area > div > select {
+  width: 100%;
+  height: 40px;
+  margin-bottom: 10px;
+}
+
+.all-product > .product > .product-area > .btns-count-area > button{
+  width: 33px;
+  margin-bottom: 10px;
+}
+
+.all-product > .product > .product-area > .btns-count-area > .disPlayCount {
+  text-align: center;
+}
+
+.all-product > .product > .product-area > div > .jang {
+  width: 100%;
+  height: 40px;
+  margin-bottom: 15px;
+}
+
+.all-product > .product > .product-area > div > .ch {
+  width: 100%;
+  height: 40px; 
+}
+
+.all-product > .product-explan > .pro-ex {
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.all-product > .product-explan > .star {
+  margin-bottom: 15px;
+}
+
+.all-product > .product-explan > .star >.rev {
+  font-weight: bold;
+  font-size: 1.2rem;  
+  margin-top: 15px;
+}
+
+.all-product > .product-explan > .star > div > span {
+  color: gold;
+}
+
+.all-product > .product-explan > .good{
+  font-size: 1.2rem;   
+  font-weight: bold;
+}
+
+.all-product > .product-explan > .good-img-area {
+  display: flex;
+  justify-content: space-between;
+}
+
+.all-product > .product-explan > .good-img-area img {
+  width: 200px;
+  height: 150px;
+  border-radius: 3px;
+}
+
+.all-product > .product-explan > .good-img-area:hover > img {
+  cursor: pointer;
+}
+
+JS
+console.clear();
+
+const sideImg = $('.side-img');
+
+sideImg.click(function(){
+  const index = $(this).index();
+  const imgGarllery = $(this).closest('.img-garllery');
+  const imgArea = imgGarllery.find('.main-img-area');
+  const imgs = imgArea.find('img');
+
+  imgs.hide().eq(index).show();
+  imgArea.data('index', index);
+
+  sideImg.removeClass('doMain');
+  $(this).addClass('doMain');
+});
+
+$('.btns-area > button').click(function(){
+  const btn = $(this);
+  const imgGarllery = $(this).closest('.img-garllery');
+  const imgArea = imgGarllery.find('.main-img-area');
+  const imgs = imgArea.find('img');  
+
+  let index = imgArea.data('index');
+
+  if(btn.hasClass('left')){
+    index = (index - 1 + imgs.length) % imgs.length;
+  } else {
+    index = (index + 1) % imgs.length;
+  }
+
+  imgs.hide().eq(index).show();
+  imgArea.data('index', index);
+
+  sideImg.removeClass('doMain');
+  sideImg.eq(index).addClass('doMain');  
+});
+
+$('.btns-count-area > button').click(function(){
+  const btn = $(this);
+  const count = $('.disPlayCount');
+
+  let currentCount = parseInt(count.val());
+
+  if(btn.hasClass('plus')){
+    currentCount++;
+  } else if(btn.hasClass('minus')){
+    if(currentCount > 0){
+      currentCount--;
+    }
+  }
+  count.val(currentCount);
+});

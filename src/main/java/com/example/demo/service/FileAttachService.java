@@ -61,4 +61,8 @@ public class FileAttachService {
 	public String getOriginalFilename(String filePath) {
 		return fileAttachDao.getOriginalFilename(filePath);
 	}
+
+	public String getFirstStoredFilenameByWorkLogId(int workLogId) {
+		return this.fileAttachDao.findFirstByWorkLogId(workLogId);
+	}
 }

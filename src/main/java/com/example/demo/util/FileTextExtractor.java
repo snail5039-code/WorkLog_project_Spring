@@ -58,19 +58,4 @@ public class FileTextExtractor {
 		}
 		return lowerFilename;
 	}
-	
-//  hwp라이브러리 테스트 hwpx는 안되서 그냥 쓰자 	
-//	public String test() {
-//		System.out.println("asdasd");
-//		HWPFile hwpFile;
-//		String hwpText = null;
-//		try {
-//			hwpFile = HWPReader.fromFile("C:\\Users\\admin\\Downloads" + "\\나를 소개 합니다.hwp");
-//			hwpText = TextExtractor.extract(hwpFile, TextExtractMethod.AppendControlTextAfterParagraphText);
-//			System.out.println(hwpText);
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//		}
-//		return hwpText;
-//	}
 }

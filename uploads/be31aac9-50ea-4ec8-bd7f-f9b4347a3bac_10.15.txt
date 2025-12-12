@@ -1,0 +1,109 @@
+문자 디테일 처리
+
+줄바꿈 X
+white-space:nowrap;
+
+흘러넘친 것들 처리
+overflow: scroll;
+overflow-x
+overflow-y
+
+auto는 자동으로 스크롤 생기고 없어지고 함 
+
+줄바꿈 o
+white-space:wrap;
+
+흘러넘친 것 숨기는 것
+overflow:hidden;
+text-overflow: ellipsis; -> ...넣기
+
+
+바로가기 같이 스크롤 움직일때마다 같이 움직이는 것
+position: fixed
+
+개념 : white-space:nowrap, 줄바꿈 금지
+html
+<div>
+  Lorem, ipsum dolor sit amet consectetur adipisicing elit. Cupiditate veniam cum, corrupti praesentium sit, atque ad optio inventore omnis quod nostrum amet eveniet? Assumenda labore accusamus soluta adipisci, aliquam veniam?
+</div>
+css
+div {
+  padding:10px;
+  font-size:2rem;
+  width:1000px;
+  margin:0 auto;
+  background-color:red;
+  /* 절대 줄바꿈 금지 */
+  white-space:nowrap;
+}
+
+개념 : overflow-x:auto, 스크롤바 자동생성
+html
+<div>
+  Lorem, ipsum dolor sit amet consectetur adipisicing elit. Cupiditate veniam cum, corrupti praesentium sit, atque ad optio inventore omnis quod nostrum amet eveniet? Assumenda labore accusamus soluta adipisci, aliquam veniam?
+</div>
+css
+div {
+  padding:10px;
+  font-size:2rem;
+  width:1000px;
+  margin:0 auto;
+  background-color:red;
+  white-space:nowrap;
+  /* 가로방향으로 스크롤바를 무조건 생성(넘치치 않으면 스크롤바가 안생김) */
+  overflow-x:auto;
+}
+
+개념 : overflow-x:scroll, 스크롤바 무조건 생성
+html
+<div>
+  내용
+</div>
+css
+div {
+  padding:10px;
+  font-size:2rem;
+  width:1000px;
+  margin:0 auto;
+  background-color:red;
+  white-space:nowrap;
+  /* 필요에 따라 가로 스크롤바 생성 */
+  overflow-x:scroll;
+}
+
+개념 : overflow-x:hidden, 넘치는 내용 숨김
+html
+<div>
+  Lorem ipsum dolor sit amet, consectetur adipisicing elit. Totam ratione expedita voluptatem tenetur saepe consectetur numquam quas enim molestias, dolorem ex. Labore mollitia magnam architecto laborum fugit ut, illo animi?
+</div>
+css
+div {
+  padding:10px;
+  font-size:2rem;
+  width:1000px;
+  margin:0 auto;
+  background-color:red;
+  white-space:nowrap;
+  /* 넘쳐나는 내용 무조건 숨김 */
+  overflow-x:hidden;
+  /* 넘친 텍스트 ... 으로 처리 */
+  text-overflow:ellipsis;
+}
+개념 : text-overflow:ellipsis, 넘쳐서 숨겨지는 텍스트 ... 처리(5분완성)
+html
+<div>
+  Lorem ipsum dolor sit amet, consectetur adipisicing elit. Totam ratione expedita voluptatem tenetur saepe consectetur numquam quas enim molestias, dolorem ex. Labore mollitia magnam architecto laborum fugit ut, illo animi?
+</div>
+
+css
+div {
+  padding:10px;
+  font-size:2rem;
+  width:1000px;
+  margin:0 auto;
+  background-color:red;
+  white-space:nowrap;
+  overflow-x:hidden;
+  /* 넘쳐서 숨겨지는 텍스트 ... 처리 */
+  text-overflow:ellipsis;
+}

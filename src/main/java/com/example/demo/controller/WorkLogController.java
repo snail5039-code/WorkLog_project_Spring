@@ -52,14 +52,9 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j // 로킹 어노테이션
 @RestController
-@CrossOrigin(origins = { "http://localhost:5173", "http://localhost:5174" }, methods = {
-        RequestMethod.GET,
-        RequestMethod.POST,
-        RequestMethod.PUT,
-        RequestMethod.DELETE,
-        RequestMethod.OPTIONS
-    },
-allowCredentials = "true") // 쿠키 설정
+@CrossOrigin(origins = { "http://localhost:5173", "http://localhost:5174" }, methods = { RequestMethod.GET,
+		RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS }, allowCredentials = "true") // 쿠키
+																															// 설정
 @RequestMapping("/api")
 public class WorkLogController {
 
@@ -166,23 +161,26 @@ public class WorkLogController {
 			String templateId, List<MultipartFile> files, HttpSession session) {
 		// 여기는 ai한테 입력된 값 넘기는 곳!
 		String finalAiReport = null;
+		String effectiveTemplateId = null;
 		// ai 처리를 위해 템플릿 파일, 내용을 준비
-		MultipartFile templateFile = null; // combinedNewContent 결합된 새로운 내용
-		String combinedNewContent = "제목: " + title + "\n\n" + mainContent + "\n\n보조 내용: " + sideContent;
-
-		String effectiveTemplateId;
-		try {
-
-			effectiveTemplateId = (templateId == null || templateId.isBlank()) ? "TPL1" : templateId;
-			finalAiReport = this.workChatAIService.generateFinalReport(effectiveTemplateId, combinedNewContent);
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.err.println("AI 보고서 생성 중 오류 발생, 원본 내용 저장:" + e.getMessage());
-			// DB에서 summaryContent NOT NULL 이라면 최소한 빈 JSON이라도 넣어주자
+		if (boardId == 7 || boardId == 8 || boardId == 9) {
 			finalAiReport = "{}";
-			effectiveTemplateId = "TPL1";
-		}
+			effectiveTemplateId = null; // 템플릿ID 안 씀
+		} else {
+			String combinedNewContent = "제목: " + title + "\n\n" + mainContent + "\n\n보조 내용: " + sideContent;
 
+			try {
+
+				effectiveTemplateId = (templateId == null || templateId.isBlank()) ? "TPL1" : templateId;
+				finalAiReport = this.workChatAIService.generateFinalReport(effectiveTemplateId, combinedNewContent);
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.err.println("AI 보고서 생성 중 오류 발생, 원본 내용 저장:" + e.getMessage());
+				// DB에서 summaryContent NOT NULL 이라면 최소한 빈 JSON이라도 넣어주자
+				finalAiReport = "{}";
+				effectiveTemplateId = "TPL1";
+			}
+		}
 		int memberIdObj = (int) session.getAttribute("logindeMemberId");
 
 		// MultipartFile 이거는 따로 테이블 만들어서 보관해야됌!
@@ -299,6 +297,33 @@ public class WorkLogController {
 		return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM)
 				.header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition).body(resource);
 
+	}
+
+	// ⭐ 템플릿 게시판(예: boardId = 7)의 글에서 첨부파일 한 개 다운로드
+	@GetMapping("/usr/work/{id}/template-download")
+	public ResponseEntity<Resource> downloadTemplateFile(@PathVariable("id") int workLogId) {
+
+		// 1) 글 존재하는지 확인 (없으면 404)
+		WorkLog log = workLogService.showDetail(workLogId);
+		if (log == null) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다.");
+		}
+
+		// 2) 템플릿 게시판이 아니면 막기 (원하면 주석처리해도 됨)
+		if (log.getBoardId() != 7) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "템플릿 게시판 글이 아닙니다.");
+		}
+
+		// 3) 첨부파일 중 첫 번째 파일의 storedFilename 가져오기
+		// 👉 fileAttachService에 이 메서드를 하나 만들어야 함
+		String storedFilename = fileAttachService.getFirstStoredFilenameByWorkLogId(workLogId);
+
+		if (storedFilename == null) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "첨부된 템플릿 파일이 없습니다.");
+		}
+
+		// 4) 이미 있는 다운로드 로직 재사용
+		return downloadFile(storedFilename);
 	}
 
 	@GetMapping("/usr/workLog/myPageSummary")
@@ -440,44 +465,44 @@ public class WorkLogController {
 			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
 		}
 		int memberId = memberIdObj;
-		
-		//댓글 존재 여부 확인
+
+		// 댓글 존재 여부 확인
 		RePly reply = this.workReplyService.findById(replyId);
-		if(reply == null) {
+		if (reply == null) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("본인이 작성한 댓글만 삭제 할 수 있습니다.");
 		}
-		
+
 		this.workReplyService.deleteById(replyId);
 		return ResponseEntity.noContent().build();
 	}
-	
+
 	@PutMapping("/usr/work/replies/{replyId}")
-	public ResponseEntity<?> modifyReply( @PathVariable("replyId") int replyId, @RequestBody Map<String, String> body, HttpSession session) {
+	public ResponseEntity<?> modifyReply(@PathVariable("replyId") int replyId, @RequestBody Map<String, String> body,
+			HttpSession session) {
 		Integer memberIdObj = (Integer) session.getAttribute("logindeMemberId");
-	    if (memberIdObj == null) {
-	        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
-	    }
-	    int memberId = memberIdObj;
+		if (memberIdObj == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		int memberId = memberIdObj;
 
-	    String content = body.get("content");
-	    if (content == null || content.isBlank()) {
-	        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "댓글 내용을 입력하세요.");
-	    }
+		String content = body.get("content");
+		if (content == null || content.isBlank()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "댓글 내용을 입력하세요.");
+		}
 
-	    // 본인 댓글인지 확인
-	    RePly reply = this.workReplyService.findById(replyId);
-	    if (reply == null) {
-	        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("댓글을 찾을 수 없습니다.");
-	    }
-	    if (reply.getMemberId() != memberId) {
-	        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-	                .body("본인이 작성한 댓글만 수정할 수 있습니다.");
-	    }
-	    this.workReplyService.updateReply(replyId, content);
-	    RePly updated = this.workReplyService.findById(replyId);
-	    return ResponseEntity.ok(updated);
+		// 본인 댓글인지 확인
+		RePly reply = this.workReplyService.findById(replyId);
+		if (reply == null) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("댓글을 찾을 수 없습니다.");
+		}
+		if (reply.getMemberId() != memberId) {
+			return ResponseEntity.status(HttpStatus.FORBIDDEN).body("본인이 작성한 댓글만 수정할 수 있습니다.");
+		}
+		this.workReplyService.updateReply(replyId, content);
+		RePly updated = this.workReplyService.findById(replyId);
+		return ResponseEntity.ok(updated);
 	}
-	
+
 	@PostMapping("/usr/work/modify/{id}")
 	public int modify(@PathVariable("id") int id, @RequestBody WorkLog modifyData) {
 		return this.workLogService.doModify(id, modifyData);
