@@ -14,7 +14,9 @@ CREATE TABLE workLog(
     , boardId INT UNSIGNED NOT NULL  
 );
 ALTER TABLE workLog ADD COLUMN summaryContent TEXT NOT NULL;
+ALTER TABLE workLog MODIFY COLUMN summaryContent TEXT;
 ALTER TABLE workLog ADD COLUMN templateId VARCHAR(20) NOT NULL DEFAULT 'TPL2';
+ALTER TABLE workLog MODIFY COLUMN templateId VARCHAR(20) DEFAULT 'TPL2';
 
 CREATE TABLE `member`(
     id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT
@@ -45,6 +47,11 @@ VALUES('공지사항')
 		,('일일업무일지')
 		,('주간업무일지')
 		,('월간업무일지');
+		
+INSERT INTO board(boardName)
+VALUES('템플릿 등록')
+        ,('자주 묻는 질문')
+        ,('오류사항 접수');
 
 CREATE TABLE fileAttach(
    id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT '첨부파일 고유 번호'
@@ -92,6 +99,33 @@ VALUES
     (NOW(), NOW(), '주간 업무일지 1', '주간 업무 내용입니다', '보조내용 없음', '{}', 1, 'TPLW1', 5),
     (NOW(), NOW(), '월간 업무일지 1', '월간 업무 내용입니다', '보조내용 없음', '{}', 1, 'TPL1', 6);
                    
+CREATE TABLE rePly(
+    id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT NOT NULL
+    , regDate DATETIME NOT NULL
+    , updateDate DATETIME NOT NULL
+    , workLogId INT UNSIGNED NOT NULL
+    , memberId INT UNSIGNED NOT NULL
+    , content TEXT NOT NULL 
+);
+
+/* 챗봇 크롤링 하려고 만든 것 */
+CREATE TABLE pageContent (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    url VARCHAR(500) NOT NULL UNIQUE,
+    title VARCHAR(500) NOT NULL,
+    content LONGTEXT,
+    crawled_at DATETIME
+) ENGINE=INNODB DEFAULT CHARSET=utf8mb4;
+
+SELECT *
+    FROM pageContent;
+
+TRUNCATE TABLE pageContent;
+
+SELECT *
+    FROM rePly;
+    
+TRUNCATE TABLE rePly;    
 
 SELECT *
     FROM workLog;
@@ -105,6 +139,8 @@ SELECT *
     FROM board;
     
 TRUNCATE TABLE board;
+
+TRUNCATE TABLE `member`;
 
 SELECT *
    FROM fileAttach;
