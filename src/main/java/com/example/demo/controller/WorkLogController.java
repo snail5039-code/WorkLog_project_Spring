@@ -23,16 +23,18 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.demo.dto.HandoverLog;
 import com.example.demo.dto.Member;
+import com.example.demo.dto.RePly;
 import com.example.demo.dto.TemplateUsageDto;
 import com.example.demo.dto.WorkLog;
 import com.example.demo.service.DocxTemplateService;
@@ -43,13 +45,21 @@ import com.example.demo.service.MemberService;
 import com.example.demo.service.TemplateValueService;
 import com.example.demo.service.WorkChatAIService;
 import com.example.demo.service.WorkLogService;
+import com.example.demo.service.WorkReplyService;
 
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j // 로킹 어노테이션
 @RestController
-@CrossOrigin(origins = { "http://localhost:5173", "http://localhost:5174" }, allowCredentials = "true") // 쿠키 설정
+@CrossOrigin(origins = { "http://localhost:5173", "http://localhost:5174" }, methods = {
+        RequestMethod.GET,
+        RequestMethod.POST,
+        RequestMethod.PUT,
+        RequestMethod.DELETE,
+        RequestMethod.OPTIONS
+    },
+allowCredentials = "true") // 쿠키 설정
 @RequestMapping("/api")
 public class WorkLogController {
 
@@ -64,6 +74,7 @@ public class WorkLogController {
 	private final MemberService memberService;
 	private final HandoverTemplateService handoverTemplateService;
 	private final HandoverLogService handoverLogService;
+	private final WorkReplyService workReplyService;
 
 	private static final int BOARD_ID_WEEKLY = 5;
 	private static final int BOARD_ID_MONTHLY = 6;
@@ -72,7 +83,8 @@ public class WorkLogController {
 	public WorkLogController(WorkLogService workLogService, FileAttachService fileAttachService,
 			WorkChatAIService workChatAIService, TemplateValueService templateValueService,
 			DocxTemplateService docxTemplateService, MemberService memberService,
-			HandoverTemplateService handoverTemplateService, HandoverLogService handoverLogService) {
+			HandoverTemplateService handoverTemplateService, HandoverLogService handoverLogService,
+			WorkReplyService workReplyService) {
 		this.workLogService = workLogService;
 		this.fileAttachService = fileAttachService;
 		this.workChatAIService = workChatAIService;
@@ -81,6 +93,7 @@ public class WorkLogController {
 		this.memberService = memberService;
 		this.handoverTemplateService = handoverTemplateService;
 		this.handoverLogService = handoverLogService;
+		this.workReplyService = workReplyService;
 	}
 
 	// 💡 실제로 쓸 엔드포인트
@@ -204,38 +217,38 @@ public class WorkLogController {
 		}
 		return "데이터 입력 완료";
 	}
-	
+
 	@PostMapping("/usr/work/simplePost")
 	public Map<String, Object> writeSimplePost(@RequestBody WorkLog body, HttpSession session) {
 		Integer memberIdObj = (Integer) session.getAttribute("logindeMemberId");
-	    if (memberIdObj == null) {
-	        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
-	    }
-	    int memberId = memberIdObj;
-	    int boardId = body.getBoardId();
-	    
-	    if(boardId == 1 && memberId != 1) {
-	    	throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공지사항은 관리자만 작성할 수 있습니다.");
-	    }
-	    
-	    if(boardId != 1 && boardId != 2 && boardId != 3) {
-	    	throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "일반 게시판만 가능합니다.");
-	    }
-	    
-	    WorkLog log = new WorkLog();
-	    log.setTitle(body.getTitle());
-	    log.setMainContent(body.getMainContent());
-	    log.setSideContent(null);
-	    log.setTemplateId(null);
-	    log.setSummaryContent(null);
-	    
-	    this.workLogService.writeWorkLog(log, memberId, boardId);
-	    int newId = this.workLogService.getLastInsertId();
-	    
-	    Map<String, Object> result = new HashMap<>();
-	    result.put("id", newId);
-	    result.put("message", "게시글이 등록되었습니다.");
-	    return result;
+		if (memberIdObj == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		int memberId = memberIdObj;
+		int boardId = body.getBoardId();
+
+		if (boardId == 1 && memberId != 1) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공지사항은 관리자만 작성할 수 있습니다.");
+		}
+
+		if (boardId != 1 && boardId != 2 && boardId != 3) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "일반 게시판만 가능합니다.");
+		}
+
+		WorkLog log = new WorkLog();
+		log.setTitle(body.getTitle());
+		log.setMainContent(body.getMainContent());
+		log.setSideContent(null);
+		log.setTemplateId(null);
+		log.setSummaryContent(null);
+
+		this.workLogService.writeWorkLog(log, memberId, boardId);
+		int newId = this.workLogService.getLastInsertId();
+
+		Map<String, Object> result = new HashMap<>();
+		result.put("id", newId);
+		result.put("message", "게시글이 등록되었습니다.");
+		return result;
 	}
 
 	// 파일 다운로드 하게하기
@@ -390,11 +403,86 @@ public class WorkLogController {
 		return this.workLogService.showDetail(id);
 	}
 
+	// 댓글 기능 중 목록 조회
+	@GetMapping("/usr/work/{id}/replies")
+	public List<RePly> getReplies(@PathVariable("id") int workLogId) {
+		return this.workReplyService.getRepliesByWorkLogId(workLogId);
+	}
+
+	// 댓글 작성
+	@PostMapping("/usr/work/{id}/replies")
+	public RePly writerReply(@PathVariable("id") int workLogId, @RequestBody Map<String, String> body,
+			HttpSession session) {
+		Integer memberIdObj = (Integer) session.getAttribute("logindeMemberId");
+		if (memberIdObj == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		int memberId = memberIdObj;
+
+		String content = body.get("content");
+		if (content == null || content.isBlank()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "댓글 내용을 입력하세요.");
+		}
+		this.workReplyService.addReply(memberId, workLogId, content);
+
+		List<RePly> replies = this.workReplyService.getRepliesByWorkLogId(workLogId);
+		if (replies.isEmpty()) {
+			return null;
+		}
+		return replies.get(replies.size() - 1);
+	}
+
+	// 댓글 삭제
+	@DeleteMapping("/usr/work/replies/{replyId}")
+	public ResponseEntity<?> deleteReply(@PathVariable("replyId") int replyId, HttpSession session) {
+		Integer memberIdObj = (Integer) session.getAttribute("logindeMemberId");
+		if (memberIdObj == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		int memberId = memberIdObj;
+		
+		//댓글 존재 여부 확인
+		RePly reply = this.workReplyService.findById(replyId);
+		if(reply == null) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("본인이 작성한 댓글만 삭제 할 수 있습니다.");
+		}
+		
+		this.workReplyService.deleteById(replyId);
+		return ResponseEntity.noContent().build();
+	}
+	
+	@PutMapping("/usr/work/replies/{replyId}")
+	public ResponseEntity<?> modifyReply( @PathVariable("replyId") int replyId, @RequestBody Map<String, String> body, HttpSession session) {
+		Integer memberIdObj = (Integer) session.getAttribute("logindeMemberId");
+	    if (memberIdObj == null) {
+	        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+	    }
+	    int memberId = memberIdObj;
+
+	    String content = body.get("content");
+	    if (content == null || content.isBlank()) {
+	        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "댓글 내용을 입력하세요.");
+	    }
+
+	    // 본인 댓글인지 확인
+	    RePly reply = this.workReplyService.findById(replyId);
+	    if (reply == null) {
+	        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("댓글을 찾을 수 없습니다.");
+	    }
+	    if (reply.getMemberId() != memberId) {
+	        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+	                .body("본인이 작성한 댓글만 수정할 수 있습니다.");
+	    }
+	    this.workReplyService.updateReply(replyId, content);
+	    RePly updated = this.workReplyService.findById(replyId);
+	    return ResponseEntity.ok(updated);
+	}
+	
 	@PostMapping("/usr/work/modify/{id}")
 	public int modify(@PathVariable("id") int id, @RequestBody WorkLog modifyData) {
 		return this.workLogService.doModify(id, modifyData);
 	}
-	
+
 	@DeleteMapping("/usr/work/{id}")
 	public ResponseEntity<?> deleteWorkLog(@PathVariable("id") int id, HttpSession session) {
 		Integer memberId = (Integer) session.getAttribute("logindeMemberId");
@@ -402,17 +490,17 @@ public class WorkLogController {
 		if (memberId == null) {
 			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
 		}
-		
+
 		WorkLog workLog = workLogService.showDetail(id);
-		
-	    if (workLog == null) {
-	        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("게시글을 찾을 수 없습니다.");
-	    }
-	    
-		if(!memberId.equals(workLog.getMemberId())) {
+
+		if (workLog == null) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("게시글을 찾을 수 없습니다.");
+		}
+
+		if (!memberId.equals(workLog.getMemberId())) {
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).body("본인이 작성한 글만 삭제할 수 있습니다.");
 		}
-		
+
 		this.workLogService.deleteWorkLog(id);
 		return ResponseEntity.noContent().build();
 	}
@@ -823,7 +911,7 @@ public class WorkLogController {
 		}
 
 		String period = log.getSideContent(); // "2025-12-01 ~ 2025-12-31"
-		
+
 		String full = log.getMainContent();
 		if (full == null)
 			full = "";

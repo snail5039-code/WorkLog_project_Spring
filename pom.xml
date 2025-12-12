@@ -138,6 +138,11 @@
 		    <artifactId>docx4j-core</artifactId>
 		    <version>8.3.11</version> 
 	    </dependency>
+	    <dependency>
+        	<groupId>org.jsoup</groupId>
+        	<artifactId>jsoup</artifactId>
+      	    <version>1.18.1</version>
+  	    </dependency>
 	    
 	    <!-- 
 	    [JAXB 오류 해결을 위한 종속성 - MUST INCLUDE]
