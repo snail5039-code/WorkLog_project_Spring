@@ -471,6 +471,10 @@ public class WorkLogController {
 		if (reply == null) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("본인이 작성한 댓글만 삭제 할 수 있습니다.");
 		}
+		
+		if (reply.getMemberId() != memberId) {
+	        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("본인이 작성한 댓글만 삭제할 수 있습니다.");
+	    }
 
 		this.workReplyService.deleteById(replyId);
 		return ResponseEntity.noContent().build();
